@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily Kronos state backup
+
+[Timer]
+OnCalendar=*-*-* 23:50:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

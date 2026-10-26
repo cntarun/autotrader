@@ -1,0 +1,27 @@
+# Emergency stop from your phone (GitHub mobile app -> Actions -> kill-switch -> Run).
+# HALT = freeze (no orders). FLATTEN = sell everything then freeze. RESUME = clear (needs reason).
+# The ultimate kill switch is still: disable/delete the API key on the exchange website.
+name: kill-switch
+on:
+  workflow_dispatch:
+    inputs:
+      action: { type: choice, options: [HALT, FLATTEN, RESUME], default: HALT }
+      reason: { required: true, description: "why (goes to the audit log)" }
+permissions: { id-token: write, contents: read }
+jobs:
+  kill:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with: { role-to-assume: "${{ vars.AWS_DEPLOY_ROLE_ARN }}", aws-region: "${{ vars.AWS_REGION }}" }
+      - name: Send to bot host
+        env: { ACTION: "${{ inputs.action }}", REASON: "${{ inputs.reason }}" }
+        run: |
+          case "$ACTION" in
+            HALT|FLATTEN) CMD="docker compose exec -T bot sh -c 'echo $ACTION > /state/KILL' && docker compose restart bot" ;;
+            RESUME) CMD="docker compose exec -T bot sh -c 'rm -f /state/KILL' && docker compose exec -T bot python -m autotrader.run --config /config/config.yaml --reset-halt --reason \"$(printf %q "$REASON")\"" ;;
+          esac
+          aws ssm send-command --instance-ids "${{ vars.KRONOS_INSTANCE_ID }}" --document-name AWS-RunShellScript \
+            --comment "kill-switch $ACTION" \
+            --parameters "$(jq -cn --arg c "cd /opt/kronos/deploy && $CMD" '{commands:[$c]}')"

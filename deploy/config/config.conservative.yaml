@@ -1,0 +1,21 @@
+# CONSERVATIVE: daily bars, BTC only, at most half the sleeve in the coin, strict entry.
+mode: paper
+paper_starting_quote: 20
+exchange: { id: kraken, symbols: ["BTC/USD"], timeframe: 1d }
+model: { lookback: 400, horizon: 3, samples: 32 }
+strategy:
+  entry_edge_multiple: 2.0
+  min_prob_up: 0.62
+  exit_prob_up: 0.50
+  max_weight: 0.5
+  sizing: binary
+costs: { fee_rate: 0.004, slippage_bps: 10 }
+risk:
+  capital_cap: 20
+  min_order_notional: 5
+  max_order_notional: 20
+  max_daily_loss_pct: 4
+  max_drawdown_pct: 12
+  max_trades_per_day: 2
+  max_consecutive_losses: 4
+paths: { state_dir: /state, kill_switch_file: /state/KILL }

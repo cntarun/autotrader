@@ -1,0 +1,34 @@
+groups:
+  - name: kronos-critical
+    rules:
+      - alert: KronosDown
+        expr: up{job="kronos-bot"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "Bot process/metrics endpoint down for 5m" }
+      - alert: KronosHalted
+        expr: kronos_halted == 1
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "Trading halted by circuit breaker or kill switch - manual review needed" }
+      - alert: KronosNoCycle
+        # 4h bars: no successful cycle for 9h means two missed decisions
+        expr: time() - kronos_last_cycle_timestamp_seconds > 9 * 3600
+        labels: { severity: critical }
+        annotations: { summary: "No successful decision cycle in 9h" }
+      - alert: KronosStaleData
+        expr: time() - max(kronos_data_last_bar_timestamp_seconds) > 3 * 4 * 3600
+        labels: { severity: critical }
+        annotations: { summary: "Market data is more than 3 bars old" }
+      - alert: KronosDrawdownWarning
+        expr: kronos_drawdown_pct > 10
+        labels: { severity: warning }
+        annotations: { summary: "Drawdown {{ $value | printf \"%.1f\" }}% (halt at 20%)" }
+      - alert: KronosErrors
+        expr: increase(kronos_errors_total[1h]) > 2
+        labels: { severity: warning }
+        annotations: { summary: "Repeated errors in the last hour" }
+      - alert: KronosHighSlippage
+        expr: histogram_quantile(0.9, rate(kronos_slippage_bps_bucket[1d])) > 50
+        labels: { severity: warning }
+        annotations: { summary: "p90 slippage above 50 bps - costs are higher than modelled" }

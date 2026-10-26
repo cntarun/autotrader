@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Kronos 90s after every 4h candle close (UTC)
+
+[Timer]
+OnCalendar=*-*-* 00/4:01:30 UTC
+Persistent=true
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

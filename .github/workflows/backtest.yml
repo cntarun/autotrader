@@ -1,0 +1,44 @@
+# Manual backtest: Actions -> backtest -> Run workflow. Results are uploaded as an artifact
+# and summarised on the run page. Kronos is always compared with the naive null model.
+name: backtest
+on:
+  workflow_dispatch:
+    inputs:
+      exchange: { default: "bitstamp", description: "ccxt id for history (bitstamp/coinbase reach back years; kraken only ~720 bars)" }
+      symbol: { default: "BTC/USD" }
+      timeframe: { default: "4h" }
+      since: { default: "2025-05-01", description: "history start (needs >= lookback bars before start)" }
+      start: { default: "2025-09-01", description: "first decision - keep AFTER the model release to avoid pretraining overlap" }
+      end: { default: "2026-10-01" }
+      config: { default: "config.example.yaml" }
+permissions: { contents: read }
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip, cache-dependency-path: requirements-autotrader.txt }
+      - run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          pip install -r requirements-autotrader.txt tabulate
+      - name: Fetch data
+        run: python -m autotrader.data --exchange ${{ inputs.exchange }} --symbol "${{ inputs.symbol }}" --timeframe ${{ inputs.timeframe }} --since ${{ inputs.since }} --out data/hist.csv
+      - name: Forecasts (Kronos + naive baseline)
+        run: |
+          C=deploy/config/${{ inputs.config }}
+          python -m autotrader.backtest forecast --config $C --data data/hist.csv --start ${{ inputs.start }} --end ${{ inputs.end }} --forecaster kronos --out runs/fc_kronos.csv
+          python -m autotrader.backtest forecast --config $C --data data/hist.csv --start ${{ inputs.start }} --end ${{ inputs.end }} --forecaster naive  --out runs/fc_naive.csv
+      - name: Simulate, stress, Monte Carlo
+        run: |
+          C=deploy/config/${{ inputs.config }}
+          for m in kronos naive; do
+            python -m autotrader.backtest simulate  --config $C --data data/hist.csv --forecasts runs/fc_$m.csv --out runs/bt_$m
+            python -m autotrader.backtest scenarios --config $C --data data/hist.csv --forecasts runs/fc_$m.csv --out runs/scen_$m > runs/scen_$m.md
+            python -m autotrader.montecarlo --equity runs/bt_$m/equity.csv --timeframe ${{ inputs.timeframe }} > runs/mc_$m.json
+          done
+          { echo "## Kronos"; cat runs/scen_kronos.md; echo; echo '```json'; cat runs/bt_kronos/summary.json; echo '```';
+            echo "## Naive baseline"; cat runs/scen_naive.md; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with: { name: "backtest-${{ github.run_id }}", path: runs/, retention-days: 90 }

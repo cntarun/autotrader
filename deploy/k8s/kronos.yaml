@@ -1,0 +1,60 @@
+# kubectl apply -f deploy/k8s/kronos.yaml
+# Secrets are NOT in this file. Create them out of band, e.g.:
+#   kubectl -n kronos create secret generic kronos-secrets --from-env-file=deploy/.env
+# or sync them from AWS Secrets Manager / Vault with External Secrets Operator.
+apiVersion: v1
+kind: Namespace
+metadata: { name: kronos }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: kronos-state, namespace: kronos }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 1Gi } }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: kronos-config, namespace: kronos }
+data:
+  config.yaml: |
+    # paste deploy/config/config.yaml here (or: kubectl create configmap --from-file)
+    mode: paper
+    exchange: { id: kraken, symbols: ["BTC/USD"], timeframe: 4h }
+    paths: { state_dir: /state, kill_switch_file: /state/KILL }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: kronos-cycle, namespace: kronos }
+spec:
+  schedule: "1 */4 * * *"
+  timeZone: "Etc/UTC"
+  concurrencyPolicy: Forbid          # never two cycles at once
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 900
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+          containers:
+            - name: bot
+              image: ghcr.io/OWNER/kronos-autotrader:latest
+              args: ["--config", "/config/config.yaml", "--once"]
+              envFrom: [{ secretRef: { name: kronos-secrets } }]
+              resources:
+                requests: { cpu: 500m, memory: 1Gi }
+                limits: { cpu: "2", memory: 2Gi }
+              securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+              volumeMounts:
+                - { name: state, mountPath: /state }
+                - { name: config, mountPath: /config, readOnly: true }
+          volumes:
+            - name: state
+              persistentVolumeClaim: { claimName: kronos-state }
+            - name: config
+              configMap: { name: kronos-config }

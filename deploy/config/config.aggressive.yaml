@@ -1,0 +1,26 @@
+# AGGRESSIVE: 1h bars, several liquid pairs, Kelly sizing. Needs >= ~$300 so each sleeve
+# clears exchange minimums, and a cheaper fee tier (<=0.10%/side) to have any chance.
+# Still long-only, still no leverage.
+mode: paper
+paper_starting_quote: 300
+exchange: { id: binance, symbols: ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "BNB/USDT"], timeframe: 1h }
+model: { lookback: 480, horizon: 6, samples: 24 }
+strategy:
+  entry_edge_multiple: 1.2
+  min_prob_up: 0.56
+  exit_prob_up: 0.47
+  max_weight: 1.0
+  sizing: kelly
+  kelly_fraction: 0.25
+  target_vol_annual: 0.6
+  rebalance_band: 0.15
+costs: { fee_rate: 0.001, slippage_bps: 5 }
+risk:
+  capital_cap: 300
+  min_order_notional: 6
+  max_order_notional: 120
+  max_daily_loss_pct: 7
+  max_drawdown_pct: 30
+  max_trades_per_day: 24
+  max_consecutive_losses: 8
+paths: { state_dir: /state, kill_switch_file: /state/KILL }

@@ -1,0 +1,26 @@
+# Slack for everything; critical alerts also to email. Replace the placeholders on the server
+# (Alertmanager does not expand env vars - render this file from your secret store at deploy time).
+route:
+  receiver: slack
+  group_by: [alertname]
+  group_wait: 30s
+  repeat_interval: 4h
+  routes:
+    - matchers: [severity="critical"]
+      receiver: slack-and-email
+      repeat_interval: 1h
+receivers:
+  - name: slack
+    slack_configs:
+      - api_url: "https://hooks.slack.com/services/REPLACE/ME"
+        send_resolved: true
+  - name: slack-and-email
+    slack_configs:
+      - api_url: "https://hooks.slack.com/services/REPLACE/ME"
+        send_resolved: true
+    email_configs:
+      - to: "you@example.com"
+        from: "alerts@example.com"
+        smarthost: "smtp.example.com:587"
+        auth_username: "alerts@example.com"
+        auth_password: "REPLACE"

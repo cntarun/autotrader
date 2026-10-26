@@ -1,0 +1,59 @@
+# BALANCED preset (recommended starting point). Non-secret settings only.
+# Conservative / aggressive presets: config.conservative.yaml, config.aggressive.yaml
+mode: paper                 # paper | live   (live also needs KRONOS_LIVE_CONFIRM, see .env.example)
+paper_starting_quote: 20
+
+exchange:
+  id: kraken                # ccxt id: kraken | coinbase | bitvavo | binance | binanceus ...
+  symbols: ["BTC/USD"]      # use BTC/EUR on EU exchanges, BTC/INR or BTC/USDT on Indian ones
+  timeframe: 4h
+  sandbox: false
+
+model:
+  tokenizer: NeoQuasar/Kronos-Tokenizer-base
+  predictor: NeoQuasar/Kronos-small
+  tokenizer_revision: 0e0117387f39004a9016484a186a908917e22426
+  predictor_revision: 901c26c1332695a2a8f243eb2f37243a37bea320
+  device: cpu
+  max_context: 512
+  lookback: 400
+  horizon: 6                # 6 x 4h = 24h ahead
+  samples: 16
+  temperature: 1.0
+  top_p: 0.9
+  seed: 42
+
+strategy:
+  entry_edge_multiple: 1.5  # expected move must beat 1.5x round-trip cost (~1.8% here)
+  min_prob_up: 0.58
+  exit_prob_up: 0.48
+  max_weight: 1.0           # 1.0 = fully in the coin, never more (no leverage)
+  sizing: binary            # binary is right for tiny accounts (min order sizes)
+  kelly_fraction: 0.25
+  target_vol_annual: null
+  rebalance_band: 0.10
+
+costs:                      # set to YOUR exchange's real fee tier
+  fee_rate: 0.004           # 0.40% per side (Kraken Pro taker, lowest tier)
+  slippage_bps: 10
+
+risk:
+  capital_cap: 20           # bot never manages more than this
+  min_order_notional: 5
+  max_order_notional: 25
+  max_daily_loss_pct: 5
+  max_drawdown_pct: 20
+  max_trades_per_day: 6
+  max_consecutive_losses: 5
+  max_data_staleness_bars: 2
+  max_forecast_abs_return: 0.25
+  max_slippage_bps: 100
+  reconcile_tolerance_pct: 2
+
+paths:
+  state_dir: /state
+  kill_switch_file: /state/KILL
+
+runtime:
+  loop_delay_seconds: 90
+  health_port: 9108

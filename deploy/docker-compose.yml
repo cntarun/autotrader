@@ -1,0 +1,63 @@
+# Run from deploy/:   cp .env.example .env && cp config/config.example.yaml config/config.yaml
+#   docker compose up -d                      # bot only (~1.2 GB RAM)
+#   docker compose --profile monitoring up -d # + Prometheus, Alertmanager, Grafana (~+600 MB)
+name: kronos
+
+services:
+  bot:
+    image: ${KRONOS_IMAGE:-ghcr.io/OWNER/kronos-autotrader:latest}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    env_file: .env                     # secrets: never commit this file
+    volumes:
+      - ./config:/config:ro
+      - kronos_state:/state
+    ports:
+      - "127.0.0.1:9108:9108"          # metrics/health on localhost only
+    mem_limit: 1500m
+    cpus: 1.5
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "10" }
+
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=90d
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prom_data:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+
+  alertmanager:
+    profiles: [monitoring]
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    command: [--config.file=/etc/alertmanager/alertmanager.yml]
+    env_file: .env
+    volumes: [./alertmanager:/etc/alertmanager:ro]
+    ports: ["127.0.0.1:9093:9093"]
+
+  grafana:
+    profiles: [monitoring]
+    image: grafana/grafana:11.3.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports: ["127.0.0.1:3000:3000"]    # reach it through an SSH tunnel, not the internet
+
+volumes:
+  kronos_state:
+  prom_data:
+  grafana_data:

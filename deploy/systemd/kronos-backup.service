@@ -1,0 +1,6 @@
+[Unit]
+Description=Back up Kronos state (positions, fills ledger, decisions log)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'mkdir -p /var/backups/kronos && docker run --rm -v kronos_kronos_state:/state:ro -v /var/backups/kronos:/b alpine tar czf /b/state-$(date -u +%%Y%%m%%dT%%H%%M).tgz -C /state . && find /var/backups/kronos -name "state-*.tgz" -mtime +90 -delete'

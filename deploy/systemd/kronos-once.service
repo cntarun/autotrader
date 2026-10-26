@@ -1,0 +1,17 @@
+# One decision cycle per run (alternative to the long-running compose service).
+# Install: sudo cp kronos-once.* /etc/systemd/system/ && sudo systemctl enable --now kronos-once.timer
+[Unit]
+Description=Kronos autotrader - single decision cycle
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/kronos/deploy
+TimeoutStartSec=900
+ExecStart=/usr/bin/docker run --rm --name kronos-once \
+  --env-file /opt/kronos/deploy/.env \
+  -v /opt/kronos/deploy/config:/config:ro \
+  -v kronos_kronos_state:/state \
+  ${KRONOS_IMAGE} --config /config/config.yaml --once
+Environment=KRONOS_IMAGE=ghcr.io/OWNER/kronos-autotrader:latest

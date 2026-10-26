@@ -1,0 +1,11 @@
+# Runtime deps for autotrader/ (install torch CPU wheel first, see deploy/Dockerfile)
+numpy>=1.26,<3
+pandas==2.2.2
+einops==0.8.1
+huggingface_hub==0.33.1
+safetensors==0.6.2
+tqdm==4.67.1
+pyyaml>=6.0
+ccxt==4.5.90
+prometheus-client>=0.20
+requests>=2.32
