@@ -53,7 +53,7 @@ or the CLI commands in `docs/AUTOTRADER_PLAN.md` §6.2.
 
 # Stock indices: S&P 500 and Nifty 50, daily (October 2026)
 
-**Verdict: not ready for money. Nifty 50 is the first promising result, but the evidence is weak.**
+**Verdict: not ready for money. Buying and holding the index beat the strategy in 3 of 4 windows.**
 
 Setup: same model, daily candles (Yahoo Finance), 5-trading-day horizon, preset
 `deploy/config/config.index-daily.yaml` (thresholds fixed before any index results), 0.10% fee +
@@ -80,18 +80,37 @@ Setup: same model, daily candles (Yahoo Finance), 5-trading-day horizon, preset
 - **S&P 500:** Kronos predicted a fall almost every day (a persistent bearish bias after the long rise), so the long-only strategy sat in cash 94% of the time and missed a +20% year. Its ranking of good vs bad days (IC 0.18) was informative, but its direction was not.
 - **Both:** probabilities remain overconfident (Brier worse than always predicting the base rate).
 
-## Long window: Jan 2022 → Aug 2025 (may overlap Kronos's training data)
+## Long window: Jan 2022 → Aug 2025 (may overlap Kronos's training data, so treat as optimistic)
 
-Forecast quality (valid): Nifty 50 hit rate 51%, IC 0.06, correct when > +1.5%: 68% (n=85);
-S&P 500 hit rate 48%, IC 0.10, correct when > +1.5%: 66% (n=83).
+Re-run with the window-end fix (2026-10-27).
 
-The trading results for this window from the first Colab run are **invalid** because of a
-simulation bug, fixed 2026-10-27: sub-windows kept holding positions until the end of the data
-file. They need a re-run of the report cells.
+| | Nifty 50 | S&P 500 |
+|---|---|---|
+| Decisions | 904 | 918 |
+| Strategy return | +3.1% | +26.3% |
+| Buy & hold | **+39.7%** | **+33.8%** |
+| Naive baseline | −19.8% | −21.0% |
+| Sharpe / max drawdown | 0.15 / −11.3% | 0.65 / −12.8% |
+| Time in market | 23% | 17% |
+| Hit rate / IC | 51% / 0.06 | 48% / 0.10 |
+| Correct when forecast > +1.5% | 68% (n=85) | 66% (n=83) |
+| Zero-cost return | +13.1% | +40.5% |
+| Preset on unseen 2nd half vs buy & hold | −6.6% vs +29.1% | +3.5% vs +53.0% |
+| Monte Carlo P(loss), 1 year | 46% | 37% |
 
 ## Takeaways
 
-Unlike BTC (IC ≈ 0), the stock-index forecasts carry a small, consistent ranking signal
-(IC +0.06 to +0.18 in all four windows; confident calls right 66–68% where n ≥ 36). The absolute
-forecasts are biased and overconfident, which hurts a strategy that only acts on them directly.
-Next step: more independent evidence (more indices on the clean window) before any paper trading.
+1. **Kronos behaves like a defensive market-timer on indices.** It helped in falling or choppy markets
+   (Nifty 2025–26: +3.1% vs −7.6%; S&P 2022 decline) and lagged badly in rising ones (S&P 2025–26:
+   +1.4% vs +19.7%; Nifty 2022–25: +3.1% vs +39.7%; S&P 2023–25 second half: +3.5% vs +53%).
+2. **Buying and holding the index returned more in 3 of 4 windows.** The strategy beat it only in the
+   one falling market. It did have smaller drawdowns and always beat the naive baseline.
+3. **There is a small, consistent ranking signal** (IC +0.06 to +0.18 in all four windows; strongly
+   positive forecasts right 66–68% of the time where n ≥ 36), unlike BTC (IC ≈ 0). The absolute forecasts
+   are biased bearish and overconfident, which keeps a long-only, in-or-out strategy out of the market.
+4. Only one result clears Sharpe > 0.5 (S&P long, +0.65), and that is the window that may overlap the
+   model's training data.
+
+**Verdict:** no version is ready for real money. The one idea worth testing is a *risk overlay*: stay
+invested by default and reduce exposure only on strongly bearish forecasts. This rule must be fixed
+in advance and tested on indices it has not seen (clean window) before any paper trading.
