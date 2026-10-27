@@ -84,3 +84,5 @@ deploy/.env
 *.tfstate
 *.tfstate.*
 .terraform/
+data/**/*.csv
+models/

@@ -127,6 +127,8 @@ def main(argv=None) -> None:
     train_items = wins.ends(last_target_to=a.train_end)
     val_items = wins.ends(first_target_from=a.val_start, last_target_to=a.val_end, stride=a.horizon)
     print(f"series={len(data)} train windows={len(train_items)} val windows={len(val_items)}", flush=True)
+    if len(val_items) < 20 or len(train_items) < 1000:
+        raise SystemExit(f"not enough data: {len(train_items)} train / {len(val_items)} val windows")
 
     tokenizer = KronosTokenizer.from_pretrained(a.tokenizer, revision=a.tokenizer_revision).to(a.device).eval()
     model = Kronos.from_pretrained(a.predictor, revision=a.predictor_revision).to(a.device)
