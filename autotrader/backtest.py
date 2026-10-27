@@ -86,6 +86,9 @@ def simulate(cfg: Config, df: pd.DataFrame, fc: pd.DataFrame, capital: float | N
     pos_of = {ts: i for i, ts in enumerate(df["timestamps"])}
     fc = fc[fc["timestamps"].isin(pos_of)].copy()
     first = pos_of[fc["timestamps"].iloc[0]]
+    # The window ends at the last decision (plus the bar where its order would fill), not at
+    # the end of the data file; otherwise a sub-window silently keeps holding into later data.
+    stop = min(len(df), pos_of[fc["timestamps"].iloc[-1]] + 2 + delay_bars)
     orders: dict[int, pd.Series] = {}
     for _, r in fc.iterrows():
         orders[pos_of[r["timestamps"]]] = r
@@ -94,7 +97,7 @@ def simulate(cfg: Config, df: pd.DataFrame, fc: pd.DataFrame, capital: float | N
     entry_px, fees_paid, trades, equity_rows = None, 0.0, [], []
     pending: tuple[int, float] | None = None   # (fill_bar, target_weight)
     weight = 0.0
-    for i in range(first, len(df)):
+    for i in range(first, stop):
         bar = df.iloc[i]
         # fill a pending order at this bar's open
         if pending and pending[0] == i:
@@ -134,7 +137,7 @@ def simulate(cfg: Config, df: pd.DataFrame, fc: pd.DataFrame, capital: float | N
         weight = qty * bar.close / equity if equity > 0 else 0.0
         equity_rows.append(dict(timestamps=bar.timestamps, equity=equity, weight=weight, close=bar.close))
 
-        if i in orders and pending is None and i + 1 + delay_bars < len(df):
+        if i in orders and pending is None and i + 1 + delay_bars < stop:
             r = orders[i]
             f = Forecast(r.ref_close, r.mu, r.sigma, r.p_up, np.empty((0, 0)))
             rv = realised_vol_annual(df["close"].iloc[: i + 1], bpy)

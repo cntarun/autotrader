@@ -195,3 +195,13 @@ def test_weekday_calendar_for_stock_markets():
 def test_index_daily_preset_loads():
     cfg = load_config("deploy/config/config.index-daily.yaml")
     assert cfg.exchange.calendar == "weekdays" and cfg.exchange.timeframe == "1d"
+
+
+def test_simulation_stops_at_the_end_of_the_forecast_window(tmp_path):
+    """A sub-window must not keep marking positions to market in later data."""
+    cfg = small_cfg(tmp_path)
+    df = synthetic(400)
+    fc = run_forecasts(cfg, df, NaiveBootstrapForecaster(cfg.model, "4h"), progress=False)
+    window = fc[fc.timestamps <= df.timestamps.iloc[250]]
+    eq = simulate(cfg, df, window)["equity"]
+    assert eq.timestamps.max() <= df.timestamps.iloc[251]
