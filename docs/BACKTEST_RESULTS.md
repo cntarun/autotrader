@@ -212,3 +212,41 @@ Interpretation:
 - The preset would have passed criterion 1 (IR 0.53), but the rule was to use the dev-chosen settings. Switching after seeing the test is exactly the selection bias this design prevents.
 - The weekly ranking skill is statistically indistinguishable from zero (IC 0.024, t = 0.47 on test; 0.005, t = 0.18 on dev). With a one-week delay the IC drops to about zero, yet the active return is the same. So the outperformance came mostly from which indices the low-turnover portfolio happened to hold, not from week-by-week forecasting skill.
 - "Beats naive" is weak evidence: the naive version mainly loses to trading costs from its high turnover.
+
+---
+
+# Result B: fine-tuned Kronos on stock indices (October 2026): FAIL
+
+Fine-tuning on 12 indices (training data to 2024-12-31) lowered validation loss on
+Jan → Aug 2025 from 3.25 to 2.76 (best epoch 7 of 8), so the fine-tuned weights were tested.
+Test window Sep 2025 → Oct 2026. The base-model Nifty 50 numbers reproduce the earlier run
+exactly, which confirms the pipeline is deterministic.
+
+| | Nifty 50 base | Nifty 50 fine-tuned | S&P 500 base | S&P 500 fine-tuned |
+|---|---|---|---|---|
+| Information coefficient | 0.148 | **0.186** | 0.178 | **0.033** |
+| Brier P(up) (climatology ≈ 0.25) | 0.310 | **0.276** | 0.522 | **0.428** |
+| Directional hit rate | 59.5% | 57.7% | 42.8% | 43.9% |
+| Buy-or-cash return / Sharpe | +3.1% / 0.31 | −0.1% / 0.04 | +1.4% / 0.26 | +0.1% / 0.04 |
+| Overlay return / Sharpe | −4.9% / −0.31 | −4.5% / −0.27 | +11.0% / 1.20 | +10.2% / 1.09 |
+| Buy & hold return / Sharpe | −7.6% / −0.47 | | +19.7% / 1.32 | |
+
+- **Model improved: NO.** Calibration (Brier) improved on both indices, but ranking skill (IC) improved on the Nifty 50 and collapsed on the S&P 500. The pre-registered rule required both to improve on both indices.
+- **Usable: NO.** No overlay passes its criteria; on the S&P 500 both overlays trail buy & hold.
+- Lower prediction loss did not translate into a better trading signal. The fine-tuned model is a better general fit to index candles, not a better forecaster of the next week's direction.
+
+---
+
+# Final summary (October 2026)
+
+| Test | Pre-registered? | Result |
+|---|---|---|
+| BTC/EUR 4h, buy-or-cash | Yes (thresholds fixed before data) | FAIL: no signal, loses even at zero fees |
+| S&P 500 / Nifty 50 daily, buy-or-cash | Yes | Not usable: buy & hold wins in 3 of 4 windows |
+| Sensex / Nifty Bank, overlay | Yes | FAIL (both fail at 0.25% fees) |
+| 12-index weekly ranking | Yes | FAIL (IR 0.27 < 0.5; ranking skill ≈ 0) |
+| Fine-tuned Kronos, Nifty 50 / S&P 500 | Yes | FAIL (better calibration, not better ranking) |
+
+Kronos-small, zero-shot or fine-tuned, gave no edge that survives realistic costs in any
+setup tested. The code (data loaders, backtester, risk layer, notebooks) remains usable for
+research; live trading is not recommended.

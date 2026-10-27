@@ -6,9 +6,10 @@
 
 ---
 
-> **Update (Oct 2026): the real-model backtest failed.** Kronos-small showed no edge on BTC/EUR
-> (Sep 2025 – Oct 2026), even with zero fees. See [`BACKTEST_RESULTS.md`](BACKTEST_RESULTS.md).
-> Live trading is not recommended; the paper-trading schedule is switched off.
+> **Update (Oct 2026): every real-model test failed.** Kronos showed no edge on BTC, and on stock
+> indices only a weak signal that did not survive realistic costs. A weekly index ranking and a
+> fine-tuned model also failed their pre-registered tests. Summary and details:
+> [`BACKTEST_RESULTS.md`](BACKTEST_RESULTS.md). Live trading is not recommended; paper trading is off.
 
 ## 0. Executive summary
 
