@@ -114,3 +114,38 @@ Re-run with the window-end fix (2026-10-27).
 **Verdict:** no version is ready for real money. The one idea worth testing is a *risk overlay*: stay
 invested by default and reduce exposure only on strongly bearish forecasts. This rule must be fixed
 in advance and tested on indices it has not seen (clean window) before any paper trading.
+
+---
+
+# Pre-registered overlay test: Sensex and Nifty Bank (October 2026)
+
+**Verdict: FAIL on both indices. Per the pre-registered rule, stop: no paper trading.**
+
+Rule (`deploy/config/config.index-overlay.yaml`, fixed before any results): stay fully invested; cut to
+50% when p_up ≤ 0.30 and mean forecast ≤ −1% over 5 trading days; restore at p_up ≥ 0.45.
+Clean window Sep 2025 → Oct 2026, 284 decisions per index, 0.10% fees + 5 bps slippage.
+
+| | Sensex overlay | Nifty Bank overlay | Sensex buy-or-cash | Nifty Bank buy-or-cash |
+|---|---|---|---|---|
+| Strategy return | −5.1% | +3.1% | −1.6% | −1.8% |
+| Buy & hold | −8.4% | +0.7% | −8.4% | +0.7% |
+| Naive-driven same rule | −10.9% | −0.4% | −14.1% | −15.3% |
+| Sharpe vs buy & hold | −0.31 vs −0.52 | 0.26 vs 0.12 | −0.07 vs −0.52 | −0.08 vs 0.12 |
+| Max drawdown vs buy & hold | −14.9% vs −16.5% | −14.9% vs −18.3% | −14.4% vs −16.5% | −11.7% vs −18.3% |
+| Sharpe at 0.25% fees | −0.42 | 0.15 | −0.47 | −0.01 |
+| 1-bar execution delay, Sharpe | −0.45 | −0.01 | 0.15 | −0.28 |
+
+Overlay criteria: (1) Sharpe ≥ buy & hold + 0.2: Sensex yes (+0.21), Nifty Bank **no** (+0.14);
+(2) smaller drawdown: yes, yes; (3) beats naive: yes, yes; (4) still ≥ +0.2 at 0.25% fees: **no, no**.
+
+Forecast quality: Sensex hit rate 57.7%, IC 0.12, correct when forecast > +1.5%: 53% (n=62);
+Nifty Bank hit rate 50.2%, IC 0.06, correct when > +1.5%: 65% (n=17).
+
+## Overall conclusion (7 assets/windows tested)
+
+Kronos-small, used zero-shot, has a weak but real ranking signal on stock indices: IC between
++0.06 and +0.18 everywhere, it always beats a random-forecast baseline, and it trims drawdowns
+somewhat. The edge is too small and too fragile to use. It disappears at retail fee levels or with
+a one-day execution delay, and simply holding the index returned more in most tests. On BTC there
+was no signal at all. The project stops here as an income strategy; the code remains usable for
+research.
