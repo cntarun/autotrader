@@ -44,12 +44,31 @@ def _row(name: str, s: dict) -> dict:
     return {"run": name, "end_equity": round(s["end_equity"], 2), "return": round(st["total_return"], 4),
             "sharpe": round(st["sharpe"], 2), "max_dd": round(st["max_drawdown"], 4), "trades": s["trades"],
             "win_rate": s["win_rate"], "fees": round(s["fees_paid"], 2), "exposure": s["exposure"],
-            "buy_hold_return": round(bh["total_return"], 4), "halted": bool(s["halted"])}
+            "buy_hold_return": round(bh["total_return"], 4), "buy_hold_sharpe": round(bh["sharpe"], 2),
+            "buy_hold_max_dd": round(bh["max_drawdown"], 4), "halted": bool(s["halted"])}
 
 
 def _with_costs(cfg, fee, slip):
     c = copy.deepcopy(cfg)
     c.costs.fee_rate, c.costs.slippage_bps = fee, slip
+    return c
+
+
+def _tuning_grid(cfg) -> list[dict]:
+    """Threshold combinations tried on the first half of the window."""
+    if cfg.strategy.mode == "overlay":
+        return [{"overlay_cut_p_up": p, "overlay_cut_mu": m}
+                for p in (0.2, 0.3, 0.4) for m in (-0.005, -0.01, -0.02)]
+    return [{"entry_edge_multiple": e, "min_prob_up": p}
+            for e in (0.5, 1.0, 1.5, 2.0) for p in (0.52, 0.55, 0.58, 0.62, 0.70)]
+
+
+def _with_params(cfg, params: dict):
+    c = copy.deepcopy(cfg)
+    for k, v in params.items():
+        setattr(c.strategy, k, v)
+    if "min_prob_up" in params:
+        c.strategy.exit_prob_up = min(c.strategy.exit_prob_up, params["min_prob_up"])
     return c
 
 
@@ -66,24 +85,18 @@ def evaluate(cfg, df: pd.DataFrame, fc: pd.DataFrame, capital: float = 20.0) -> 
     mid = fc.timestamps.iloc[len(fc) // 2]
     first, second = fc[fc.timestamps < mid], fc[fc.timestamps >= mid]
     grid = []
-    for ent in (0.5, 1.0, 1.5, 2.0):
-        for pu in (0.52, 0.55, 0.58, 0.62, 0.70):
-            c = copy.deepcopy(cfg)
-            c.strategy.entry_edge_multiple, c.strategy.min_prob_up = ent, pu
-            c.strategy.exit_prob_up = min(c.strategy.exit_prob_up, pu)
-            s = simulate(c, df, first, capital)["summary"]
-            grid.append((s["strategy"]["sharpe"], s["strategy"]["total_return"], ent, pu, s["trades"]))
+    for params in _tuning_grid(cfg):
+        c = _with_params(cfg, params)
+        s = simulate(c, df, first, capital)["summary"]
+        grid.append((s["strategy"]["sharpe"], s["strategy"]["total_return"], params, s["trades"]))
     grid.sort(key=lambda g: (g[0], g[1]), reverse=True)
-    sh, ret, ent, pu, trades = grid[0]
-    c = copy.deepcopy(cfg)
-    c.strategy.entry_edge_multiple, c.strategy.min_prob_up = ent, pu
-    c.strategy.exit_prob_up = min(c.strategy.exit_prob_up, pu)
+    sh, ret, best, trades = grid[0]
+    c = _with_params(cfg, best)
     tested = simulate(c, df, second, capital)["summary"]
     preset_second = simulate(cfg, df, second, capital)["summary"]
     out["tune_test"] = {
         "split_at": str(mid),
-        "best_on_first_half": {"entry_edge_multiple": ent, "min_prob_up": pu, "sharpe": round(sh, 2),
-                               "return": round(ret, 4), "trades": trades},
+        "best_on_first_half": {**best, "sharpe": round(sh, 2), "return": round(ret, 4), "trades": trades},
         "best_params_on_second_half": _row("tuned params, unseen half", tested),
         "preset_on_second_half": _row("preset params, unseen half", preset_second),
     }

@@ -39,6 +39,7 @@ class ModelCfg:
 
 @dataclass
 class StrategyCfg:
+    mode: str = "in_out"                     # in_out: buy or cash | overlay: invested by default, cut on bearish
     entry_edge_multiple: float = 1.5         # expected return must beat this x round-trip cost
     min_prob_up: float = 0.58                # share of sample paths ending higher, to enter
     exit_prob_up: float = 0.48               # exit when it falls below this
@@ -47,6 +48,11 @@ class StrategyCfg:
     kelly_fraction: float = 0.25
     target_vol_annual: float | None = None   # e.g. 0.5 -> scale down when realised vol is higher
     rebalance_band: float = 0.10             # ignore weight changes smaller than this
+    # overlay mode: hold max_weight; cut to overlay_floor when strongly bearish, restore when not
+    overlay_floor: float = 0.5
+    overlay_cut_p_up: float = 0.30           # cut when p_up <= this ...
+    overlay_cut_mu: float = -0.01            # ... and mean forecast return <= this
+    overlay_restore_p_up: float = 0.45       # back to full when p_up >= this
 
 
 @dataclass
@@ -132,6 +138,10 @@ def validate(cfg: Config) -> None:
         raise ValueError("mode must be 'paper' or 'live'")
     if cfg.exchange.calendar not in ("24/7", "weekdays"):
         raise ValueError("exchange.calendar must be '24/7' or 'weekdays'")
+    if cfg.strategy.mode not in ("in_out", "overlay"):
+        raise ValueError("strategy.mode must be 'in_out' or 'overlay'")
+    if not 0 <= cfg.strategy.overlay_floor <= cfg.strategy.max_weight:
+        raise ValueError("strategy.overlay_floor must be between 0 and max_weight")
     if cfg.strategy.sizing not in ("binary", "kelly"):
         raise ValueError("strategy.sizing must be 'binary' or 'kelly'")
     if not 0 < cfg.strategy.max_weight <= 1:

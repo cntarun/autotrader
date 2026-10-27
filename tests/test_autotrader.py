@@ -205,3 +205,16 @@ def test_simulation_stops_at_the_end_of_the_forecast_window(tmp_path):
     window = fc[fc.timestamps <= df.timestamps.iloc[250]]
     eq = simulate(cfg, df, window)["equity"]
     assert eq.timestamps.max() <= df.timestamps.iloc[251]
+
+
+def test_overlay_strategy_cuts_on_bearish_and_restores(tmp_path):
+    cfg = load_config("deploy/config/config.index-overlay.yaml")
+    s, costs = cfg.strategy, cfg.costs
+    bear = Forecast(100, -0.02, 0.01, 0.10, np.empty((0, 0)))
+    mild = Forecast(100, -0.002, 0.01, 0.40, np.empty((0, 0)))
+    bull = Forecast(100, 0.01, 0.01, 0.70, np.empty((0, 0)))
+    assert decide(mild, 0.0, s, costs).weight == 1.0          # invested by default
+    assert decide(bear, 1.0, s, costs).weight == 0.5          # cut on strong bearish
+    assert decide(mild, 0.5, s, costs).weight == 0.5          # stays reduced until p_up recovers
+    assert decide(bull, 0.5, s, costs).weight == 1.0          # restores
+    assert decide(bear, 0.0, s, costs).weight == 0.5          # never fully out
