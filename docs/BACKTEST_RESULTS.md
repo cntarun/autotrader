@@ -184,3 +184,31 @@ research.
   (config.index-overlay.yaml) pass on BOTH indices with the fine-tuned forecasts.
 - Caveat: base-model results for these two indices in this window were already seen, so this
   test is not fully blind; a pass would still need paper trading from today.
+
+---
+
+# Result A: weekly index ranking (October 2026): FAIL (1 of 4 criteria missed)
+
+Dev-chosen settings (frozen before the test): top 2 indices, de-biased forecast, 26-week
+de-bias window, holding buffer 4.
+
+| Test window, Sep 2025 → Oct 2026 (60 weeks) | Chosen settings | Preset settings (reference only) | Equal weight (all 12) |
+|---|---|---|---|
+| Total return | +19.9% | +23.4% | +16.5% |
+| Sharpe | 1.34 | 1.55 | 1.15 |
+| Max drawdown | −8.3% | −8.0% | −9.3% |
+| Information ratio vs equal weight | **0.27** (needed ≥ 0.5) | 0.53 | — |
+| Active return per year | +2.5% | +5.0% | — |
+| Mean weekly rank correlation (t-stat) | 0.024 (0.47) | 0.024 (0.47) | — |
+| Weekly turnover | 18% | 29% | — |
+
+Other checks on the chosen settings: at 0.25% fees IR 0.13; with a one-week delay IR 0.24;
+the naive-driven version lost 23% (IR −4.6, mostly from turnover costs).
+
+Checks: (1) IR ≥ 0.5: **no**; (2) Sharpe above equal weight: yes; (3) beats naive: yes;
+(4) IR > 0 at 0.25% fees: yes. **Verdict: FAIL.**
+
+Interpretation:
+- The preset would have passed criterion 1 (IR 0.53), but the rule was to use the dev-chosen settings. Switching after seeing the test is exactly the selection bias this design prevents.
+- The weekly ranking skill is statistically indistinguishable from zero (IC 0.024, t = 0.47 on test; 0.005, t = 0.18 on dev). With a one-week delay the IC drops to about zero, yet the active return is the same. So the outperformance came mostly from which indices the low-turnover portfolio happened to hold, not from week-by-week forecasting skill.
+- "Beats naive" is weak evidence: the naive version mainly loses to trading costs from its high turnover.
