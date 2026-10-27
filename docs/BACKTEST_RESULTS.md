@@ -149,3 +149,38 @@ somewhat. The edge is too small and too fragile to use. It disappears at retail 
 a one-day execution delay, and simply holding the index returned more in most tests. On BTC there
 was no signal at all. The project stops here as an income strategy; the code remains usable for
 research.
+
+---
+
+# Pre-registration (written 2026-10-27, before any results of these two tests)
+
+## A. Weekly index ranking (`autotrader/rotation.py`)
+
+- Universe: S&P 500, Nasdaq 100, Euro Stoxx 50, DAX, CAC 40, FTSE 100, Nikkei 225, Hang Seng,
+  Nifty 50, KOSPI, ASX 200, MSCI EM (EEM). Weekly close-to-close returns in local currency.
+- Each Friday: Kronos-small (pretrained, unchanged) forecasts every index 5 trading days ahead.
+  Hold the top K equally weighted; benchmark = all available indices equally weighted.
+  Costs 0.10% + 5 bps on turnover.
+- Dev window 2022-01-07 → 2025-08-29: grid search allowed over K ∈ {2,3,4}, score ∈ {mu,
+  debiased mu, p_up}, de-bias window ∈ {13,26,52} weeks, holding buffer ∈ {0,2,4}; pick by
+  information ratio. Preset (fixed now): K=3, debiased mu, 26 weeks, buffer 2.
+- Test window 2025-09-05 → 2026-10-23, evaluated once with the dev-chosen settings.
+- **PASS only if all hold on the test window:** (1) information ratio vs equal-weight ≥ 0.5;
+  (2) Sharpe above equal-weight's; (3) information ratio above the same procedure driven by
+  the naive forecaster; (4) information ratio > 0 at 0.25% fees.
+- Design change made before any Kronos result: the holding buffer, added after a
+  naive-forecaster run showed ~145%/week turnover (≈11%/yr in costs).
+
+## B. Fine-tuned Kronos for stock indices (`autotrader/finetune.py`)
+
+- Predictor fine-tuned on the same 12 indices' daily history, train windows ending ≤ 2024-12-31,
+  tokenizer frozen. Validation: forecasts landing in 2025-01-01 → 2025-08-29. The fine-tuned
+  weights are used only if their validation loss beats the pretrained model's.
+- Test: Nifty 50 and S&P 500, Sep 2025 → Oct 2026, base and fine-tuned models run in the same
+  notebook on the same GPU.
+- **"Model improved"** only if, on BOTH indices, the fine-tuned model has a higher information
+  coefficient AND a lower Brier score than the base model.
+- **"Usable"** only if, in addition, the overlay strategy's four pre-registered criteria
+  (config.index-overlay.yaml) pass on BOTH indices with the fine-tuned forecasts.
+- Caveat: base-model results for these two indices in this window were already seen, so this
+  test is not fully blind; a pass would still need paper trading from today.
