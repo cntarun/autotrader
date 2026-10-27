@@ -1,0 +1,32 @@
+# STOCK INDEX, DAILY: backtest-only preset for S&P 500 (^GSPC) / Nifty 50 (^NSEI).
+# Trading would be via an index ETF; no stock-broker connector exists yet, so live mode is not supported.
+# Thresholds mirror the crypto preset and were fixed BEFORE looking at any index results.
+mode: paper
+paper_starting_quote: 1000   # results are reported in %; capital only matters for minimum order sizes
+exchange:
+  id: none                   # backtest only (data from autotrader.stockdata / Yahoo Finance)
+  symbols: ["^GSPC"]
+  timeframe: 1d
+  calendar: weekdays         # no weekend bars; 252 trading days a year
+model:
+  lookback: 400              # ~1.6 years of trading days
+  horizon: 5                 # one trading week ahead
+  samples: 16
+strategy:
+  entry_edge_multiple: 1.5
+  min_prob_up: 0.58
+  exit_prob_up: 0.48
+  max_weight: 1.0
+  sizing: binary
+costs:
+  fee_rate: 0.001            # 0.10% per side: typical low-cost broker for index ETFs
+  slippage_bps: 5            # liquid index ETFs have tight spreads
+risk:
+  capital_cap: 1000
+  min_order_notional: 5
+  max_order_notional: 1000
+  max_daily_loss_pct: 5
+  max_drawdown_pct: 20
+  max_trades_per_day: 2
+  max_consecutive_losses: 5
+paths: { state_dir: ./state, kill_switch_file: ./state/KILL }

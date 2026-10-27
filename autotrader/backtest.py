@@ -18,6 +18,7 @@ import argparse
 import copy
 import json
 import math
+import time
 from pathlib import Path
 
 import numpy as np
@@ -43,6 +44,7 @@ def run_forecasts(cfg: Config, df: pd.DataFrame, forecaster, start=None, end=Non
         idx = idx[df.loc[idx, "timestamps"] <= pd.Timestamp(end)]
     idx = [t for t in idx[::step] if df.at[t, "timestamps"] not in done_ts]
     rows = []
+    t0 = time.time()
     many = getattr(forecaster, "forecast_many", None)
     for n in range(0, len(idx), batch):
         chunk = idx[n:n + batch]
@@ -51,9 +53,11 @@ def run_forecasts(cfg: Config, df: pd.DataFrame, forecaster, start=None, end=Non
         for t, fc in zip(chunk, fcs):
             rows.append(dict(timestamps=df.at[t, "timestamps"], ref_close=fc.ref_close,
                              mu=fc.mu, sigma=fc.sigma, p_up=fc.p_up))
-        if progress and (n // batch) % 10 == 0:
-            print(f"[forecast] {n + len(chunk)}/{len(idx)} {rows[-1]['timestamps']} "
-                  f"mu={rows[-1]['mu']:+.4f} p_up={rows[-1]['p_up']:.2f}", flush=True)
+        done_n = n + len(chunk)
+        if progress and (done_n // 100 > n // 100 or done_n == len(idx)):
+            rate = (time.time() - t0) / done_n
+            print(f"[forecast] {done_n}/{len(idx)} up to {rows[-1]['timestamps']} | "
+                  f"~{rate * (len(idx) - done_n) / 60:.0f} min left", flush=True)
         if out and (n // batch) % 10 == 9:  # checkpoint so long runs can resume
             _save_fc(done, rows, out)
     res = _save_fc(done, rows, out) if out else pd.DataFrame(rows)
@@ -76,7 +80,7 @@ def simulate(cfg: Config, df: pd.DataFrame, fc: pd.DataFrame, capital: float | N
     cfg.costs.slippage_bps *= slip_mult
     fee, slip = cfg.costs.fee_rate, cfg.costs.slippage_bps / 10_000
     capital = capital or cfg.paper_starting_quote
-    bpy = bars_per_year(cfg.exchange.timeframe)
+    bpy = bars_per_year(cfg.exchange.timeframe, cfg.exchange.calendar)
 
     df = df.reset_index(drop=True)
     pos_of = {ts: i for i, ts in enumerate(df["timestamps"])}
@@ -242,7 +246,7 @@ def main(argv=None) -> None:
     df = load_csv(a.data)
 
     if a.cmd == "forecast":
-        fcr = build_forecaster(a.forecaster, cfg.model, cfg.exchange.timeframe)
+        fcr = build_forecaster(a.forecaster, cfg.model, cfg.exchange.timeframe, cfg.exchange.calendar)
         res = run_forecasts(cfg, df, fcr, a.start, a.end, a.step, a.out, batch=a.batch)
         print(f"wrote {len(res)} forecasts to {a.out}")
         return

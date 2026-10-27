@@ -17,6 +17,7 @@ class ExchangeCfg:
     symbols: list[str] = field(default_factory=lambda: ["BTC/USD"])
     timeframe: str = "4h"
     sandbox: bool = False                    # use exchange testnet if ccxt supports it
+    calendar: str = "24/7"                   # 24/7 (crypto) | weekdays (stock markets: no weekend bars)
 
 
 @dataclass
@@ -129,6 +130,8 @@ def load_config(path: str | os.PathLike | None = None) -> Config:
 def validate(cfg: Config) -> None:
     if cfg.mode not in ("paper", "live"):
         raise ValueError("mode must be 'paper' or 'live'")
+    if cfg.exchange.calendar not in ("24/7", "weekdays"):
+        raise ValueError("exchange.calendar must be '24/7' or 'weekdays'")
     if cfg.strategy.sizing not in ("binary", "kelly"):
         raise ValueError("strategy.sizing must be 'binary' or 'kelly'")
     if not 0 < cfg.strategy.max_weight <= 1:

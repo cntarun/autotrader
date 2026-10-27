@@ -30,8 +30,8 @@ def bootstrap(returns: np.ndarray, n_bars: int, sims: int, block: int, seed: int
 
 
 def run(equity: pd.DataFrame, timeframe: str, capital: float, days: int, sims: int,
-        block_days: int, haircut: float) -> dict:
-    bpy = bars_per_year(timeframe)
+        block_days: int, haircut: float, calendar: str = "24/7") -> dict:
+    bpy = bars_per_year(timeframe, calendar)
     r = equity["equity"].pct_change().dropna().to_numpy()
     if haircut:
         r = r - haircut * max(float(r.mean()), 0.0)
@@ -62,9 +62,10 @@ def main(argv=None) -> None:
     p.add_argument("--sims", type=int, default=5000)
     p.add_argument("--block-days", type=int, default=10)
     p.add_argument("--haircut", type=float, default=0.5)
+    p.add_argument("--calendar", default="24/7", choices=["24/7", "weekdays"])
     a = p.parse_args(argv)
     eq = pd.read_csv(a.equity, parse_dates=["timestamps"])
-    print(json.dumps(run(eq, a.timeframe, a.capital, a.days, a.sims, a.block_days, a.haircut), indent=2))
+    print(json.dumps(run(eq, a.timeframe, a.capital, a.days, a.sims, a.block_days, a.haircut, a.calendar), indent=2))
 
 
 if __name__ == "__main__":

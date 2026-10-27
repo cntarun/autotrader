@@ -23,6 +23,13 @@ from .config import load_config
 from .data import load_csv
 from .montecarlo import run as monte_carlo
 
+STOCK_FEE_TIERS = [  # index ETF via a low-cost broker; % of trade value per side
+    ("broker 0.25%", 0.0025, 5),
+    ("0.10% (preset)", 0.0010, 5),
+    ("0.05%", 0.0005, 2),
+    ("zero cost (signal only)", 0.0, 0),
+]
+
 FEE_TIERS = [
     ("Kraken Pro taker 0.40%", 0.0040, 10),
     ("Kraken Pro maker 0.25%", 0.0025, 5),
@@ -53,7 +60,7 @@ def evaluate(cfg, df: pd.DataFrame, fc: pd.DataFrame, capital: float = 20.0) -> 
     out["preset"] = _row("preset config", base["summary"])
     out["stress"] = [_row(n, simulate(cfg, df, fc, capital, **kw)["summary"]) for n, kw in SCENARIOS[1:]]
     out["fee_tiers"] = [_row(n, simulate(_with_costs(cfg, f, s), df, fc, capital)["summary"])
-                        for n, f, s in FEE_TIERS]
+                        for n, f, s in (STOCK_FEE_TIERS if cfg.exchange.calendar == "weekdays" else FEE_TIERS)]
 
     # Tune thresholds on the first half, then test ONCE on the untouched second half.
     mid = fc.timestamps.iloc[len(fc) // 2]
@@ -81,7 +88,8 @@ def evaluate(cfg, df: pd.DataFrame, fc: pd.DataFrame, capital: float = 20.0) -> 
         "preset_on_second_half": _row("preset params, unseen half", preset_second),
     }
     try:
-        out["monte_carlo_1y"] = monte_carlo(base["equity"], cfg.exchange.timeframe, capital, 365, 3000, 10, 0.5)
+        out["monte_carlo_1y"] = monte_carlo(base["equity"], cfg.exchange.timeframe, capital, 365, 3000, 10, 0.5,
+                                    cfg.exchange.calendar)
     except ValueError:  # too few bars for the bootstrap block size
         out["monte_carlo_1y"] = None
     out["_equity"] = base["equity"]
