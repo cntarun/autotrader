@@ -1,3 +1,5 @@
+> A readable summary with charts is in [`report/REPORT.md`](report/REPORT.md).
+
 # Backtest results: Kronos-small, BTC/EUR (October 2026)
 
 **Verdict: failed the "backtest → paper" gate. Do not trade with real money.**
