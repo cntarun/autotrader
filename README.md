@@ -71,6 +71,7 @@ python -m autotrader.run --config deploy/config/config.example.yaml --once  # on
 
 * Plan, options, costs, compliance: [`docs/AUTOTRADER_PLAN.md`](docs/AUTOTRADER_PLAN.md)
 * Go-live runbook, kill switch, incidents, maintenance: [`docs/RUNBOOK.md`](docs/RUNBOOK.md)
+* **Study report (backtests, charts, conclusions): [`docs/report/REPORT.md`](docs/report/REPORT.md)**
 
 > Not financial advice. Live trading is disabled unless explicitly confirmed (see `deploy/.env.example`).
 

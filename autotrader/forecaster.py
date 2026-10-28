@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from .config import ModelCfg
-from .data import timeframe_to_timedelta
+from .data import future_timestamps
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -35,12 +35,13 @@ class Forecast:
 class KronosForecaster:
     name = "kronos"
 
-    def __init__(self, cfg: ModelCfg, timeframe: str, model=None, tokenizer=None):
+    def __init__(self, cfg: ModelCfg, timeframe: str, model=None, tokenizer=None, calendar: str = "24/7"):
         import torch
         from model import Kronos, KronosPredictor, KronosTokenizer
 
         self.cfg = cfg
         self.timeframe = timeframe
+        self.calendar = calendar
         self._torch = torch
         if tokenizer is None:
             tokenizer = KronosTokenizer.from_pretrained(cfg.tokenizer, revision=cfg.tokenizer_revision)
@@ -58,15 +59,13 @@ class KronosForecaster:
         """Several decision points in one model call (faster backtests). Each hist must have
         the same length after trimming to `lookback`."""
         cfg = self.cfg
-        step = timeframe_to_timedelta(self.timeframe)
         dfs, xts, yts = [], [], []
         trimmed = []
         for hist in hists:
             hist = hist.tail(cfg.lookback).reset_index(drop=True)
             if len(hist) < min(64, cfg.lookback):
                 raise ValueError(f"need more history, got {len(hist)} bars")
-            last = hist["timestamps"].iloc[-1]
-            y_ts = pd.Series([last + step * (i + 1) for i in range(cfg.horizon)])
+            y_ts = future_timestamps(hist["timestamps"].iloc[-1], self.timeframe, cfg.horizon, self.calendar)
             x_df = hist[["open", "high", "low", "close", "volume", "amount"]]
             # Repeat each series N times with sample_count=1 to get N separate paths
             # (predict()'s own sample_count averages them away).
@@ -101,9 +100,9 @@ class NaiveBootstrapForecaster:
         return Forecast.from_paths(float(closes[-1]), paths)
 
 
-def build_forecaster(kind: str, cfg: ModelCfg, timeframe: str):
+def build_forecaster(kind: str, cfg: ModelCfg, timeframe: str, calendar: str = "24/7"):
     if kind == "kronos":
-        return KronosForecaster(cfg, timeframe)
+        return KronosForecaster(cfg, timeframe, calendar=calendar)
     if kind == "naive":
         return NaiveBootstrapForecaster(cfg, timeframe)
     raise ValueError(f"unknown forecaster {kind}")

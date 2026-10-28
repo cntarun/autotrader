@@ -9,6 +9,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # gitleaks scans the PR's commit range, so it needs full history
       - uses: actions/setup-python@v5
         with: { python-version: "3.11", cache: pip, cache-dependency-path: requirements-autotrader.txt }
       - name: Install (CPU torch)

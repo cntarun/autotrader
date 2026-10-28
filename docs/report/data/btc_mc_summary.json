@@ -1,0 +1,30 @@
+{
+  "sims": 5000,
+  "horizon_days": 365,
+  "capital": 20.0,
+  "haircut": 0.5,
+  "final_equity_percentiles": {
+    "p5": 14.01,
+    "p25": 15.89,
+    "p50": 17.09,
+    "p75": 18.26,
+    "p95": 19.86
+  },
+  "return_percentiles": {
+    "p5": -0.2995,
+    "p25": -0.2056,
+    "p50": -0.1453,
+    "p75": -0.0872,
+    "p95": -0.0071
+  },
+  "max_drawdown_percentiles": {
+    "p5": -0.3236,
+    "p25": -0.237,
+    "p50": -0.1826,
+    "p75": -0.1304,
+    "p95": -0.0657
+  },
+  "prob_loss": 0.9604,
+  "prob_drawdown_over_20pct": 0.4114,
+  "prob_double": 0.0
+}

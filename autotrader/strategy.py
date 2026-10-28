@@ -26,8 +26,26 @@ def realised_vol_annual(closes: pd.Series, bars_per_year: float, window: int = 6
     return float(r.std(ddof=0) * math.sqrt(bars_per_year)) if len(r) > 1 else float("nan")
 
 
+def decide_overlay(fc: Forecast, current_weight: float, s: StrategyCfg) -> Decision:
+    """Invested by default; step down to `overlay_floor` only on strongly bearish forecasts."""
+    tag = f"p_up={fc.p_up:.2f} mu={fc.mu:+.4f}"
+    bearish = fc.p_up <= s.overlay_cut_p_up and fc.mu <= s.overlay_cut_mu
+    reduced = current_weight < s.max_weight - s.rebalance_band
+    if bearish:
+        target, why = s.overlay_floor, "cut (strongly bearish)"
+    elif reduced and current_weight > 1e-9 and fc.p_up < s.overlay_restore_p_up:
+        target, why = s.overlay_floor, "stay reduced"
+    else:
+        target, why = s.max_weight, "full"
+    if abs(target - current_weight) < s.rebalance_band:
+        return Decision(current_weight, f"hold {tag}")
+    return Decision(target, f"{why} {tag}")
+
+
 def decide(fc: Forecast, current_weight: float, s: StrategyCfg, costs: CostsCfg,
            realised_vol: float | None = None) -> Decision:
+    if s.mode == "overlay":
+        return decide_overlay(fc, current_weight, s)
     hurdle = s.entry_edge_multiple * round_trip_cost(costs)
     in_position = current_weight > 1e-9
 

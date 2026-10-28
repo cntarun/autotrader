@@ -1,0 +1,35 @@
+# STOCK INDEX OVERLAY: invested by default, step down to 50% only on strongly bearish Kronos forecasts.
+# Pre-registered 2026-10-27 BEFORE any overlay results existed, after seeing that Kronos's index
+# forecasts lean bearish (so a buy-or-cash rule mostly sits in cash).
+#
+# PASS criteria (clean window, after 0.10% fees + 5 bps slippage), all must hold on each index:
+#   1. Sharpe >= buy-and-hold Sharpe + 0.2
+#   2. Max drawdown smaller than buy-and-hold's
+#   3. Sharpe higher than the same rule driven by the naive (random) forecaster
+#   4. Criterion 1 still holds at 0.25% fees
+# If any fails, stop: no paper trading.
+mode: paper
+paper_starting_quote: 1000
+exchange: { id: none, symbols: ["^BSESN"], timeframe: 1d, calendar: weekdays }
+model:                     # identical to config.index-daily.yaml, so both rules share one set of forecasts
+  lookback: 400
+  horizon: 5
+  samples: 16
+strategy:
+  mode: overlay
+  max_weight: 1.0
+  overlay_floor: 0.5
+  overlay_cut_p_up: 0.30   # cut when <= 30% of paths end higher ...
+  overlay_cut_mu: -0.01    # ... and the mean path is down >= 1% over the week
+  overlay_restore_p_up: 0.45
+  rebalance_band: 0.10
+costs: { fee_rate: 0.001, slippage_bps: 5 }
+risk:
+  capital_cap: 1000
+  min_order_notional: 5
+  max_order_notional: 1000
+  max_daily_loss_pct: 5
+  max_drawdown_pct: 20
+  max_trades_per_day: 2
+  max_consecutive_losses: 50   # an overlay is always partly invested; streak breaker not meaningful
+paths: { state_dir: ./state, kill_switch_file: ./state/KILL }

@@ -22,8 +22,22 @@ def timeframe_to_timedelta(tf: str) -> pd.Timedelta:
     }[unit]
 
 
-def bars_per_year(tf: str) -> float:
-    return pd.Timedelta(days=365) / timeframe_to_timedelta(tf)
+def bars_per_year(tf: str, calendar: str = "24/7") -> float:
+    """365 days a year for crypto; 252 trading days (6.5h sessions) for stock markets."""
+    step = timeframe_to_timedelta(tf)
+    if calendar != "weekdays":
+        return pd.Timedelta(days=365) / step
+    if step >= pd.Timedelta(days=1):
+        return 252 * pd.Timedelta(days=1) / step
+    return 252 * (pd.Timedelta(hours=6.5) / step)
+
+
+def future_timestamps(last: pd.Timestamp, tf: str, n: int, calendar: str = "24/7") -> pd.Series:
+    """Timestamps of the next n bars. Stock markets skip weekends (holidays are ignored)."""
+    step = timeframe_to_timedelta(tf)
+    if calendar == "weekdays" and step == pd.Timedelta(days=1):
+        return pd.Series(pd.bdate_range(last.normalize() + pd.offsets.BDay(1), periods=n))
+    return pd.Series([last + step * (i + 1) for i in range(n)])
 
 
 def normalise(df: pd.DataFrame) -> pd.DataFrame:

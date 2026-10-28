@@ -173,3 +173,48 @@ def test_no_lookahead_in_forecasts(tmp_path):
     b = run_forecasts(cfg, df2, NaiveBootstrapForecaster(cfg.model, "4h"), progress=False)
     cut = df.timestamps.iloc[149]
     pd.testing.assert_frame_equal(a[a.timestamps <= cut], b[b.timestamps <= cut])
+
+
+def test_weekday_calendar_for_stock_markets():
+    from autotrader.data import bars_per_year, future_timestamps
+    from autotrader.risk import RiskManager
+    fri = pd.Timestamp("2026-10-23")                     # a Friday
+    ts = future_timestamps(fri, "1d", 3, "weekdays")
+    assert [t.day_name() for t in ts] == ["Monday", "Tuesday", "Wednesday"]
+    assert list(future_timestamps(fri, "1d", 2, "24/7").dt.day_name()) == ["Saturday", "Sunday"]
+    assert bars_per_year("1d", "weekdays") == 252 and bars_per_year("1d") == 365
+    rm = RiskManager(Config().risk)
+    day = pd.Timedelta(days=1)
+    # Friday's bar checked on Monday morning is NOT stale on a weekday calendar...
+    assert rm.check_data(fri, pd.Timestamp("2026-10-26 08:00"), day, "weekdays") is None
+    # ...but is stale on a 24/7 calendar, and stale on weekdays by Thursday
+    assert rm.check_data(fri, pd.Timestamp("2026-10-26 08:00"), day, "24/7")
+    assert rm.check_data(fri, pd.Timestamp("2026-10-29 08:00"), day, "weekdays")
+
+
+def test_index_daily_preset_loads():
+    cfg = load_config("deploy/config/config.index-daily.yaml")
+    assert cfg.exchange.calendar == "weekdays" and cfg.exchange.timeframe == "1d"
+
+
+def test_simulation_stops_at_the_end_of_the_forecast_window(tmp_path):
+    """A sub-window must not keep marking positions to market in later data."""
+    cfg = small_cfg(tmp_path)
+    df = synthetic(400)
+    fc = run_forecasts(cfg, df, NaiveBootstrapForecaster(cfg.model, "4h"), progress=False)
+    window = fc[fc.timestamps <= df.timestamps.iloc[250]]
+    eq = simulate(cfg, df, window)["equity"]
+    assert eq.timestamps.max() <= df.timestamps.iloc[251]
+
+
+def test_overlay_strategy_cuts_on_bearish_and_restores(tmp_path):
+    cfg = load_config("deploy/config/config.index-overlay.yaml")
+    s, costs = cfg.strategy, cfg.costs
+    bear = Forecast(100, -0.02, 0.01, 0.10, np.empty((0, 0)))
+    mild = Forecast(100, -0.002, 0.01, 0.40, np.empty((0, 0)))
+    bull = Forecast(100, 0.01, 0.01, 0.70, np.empty((0, 0)))
+    assert decide(mild, 0.0, s, costs).weight == 1.0          # invested by default
+    assert decide(bear, 1.0, s, costs).weight == 0.5          # cut on strong bearish
+    assert decide(mild, 0.5, s, costs).weight == 0.5          # stays reduced until p_up recovers
+    assert decide(bull, 0.5, s, costs).weight == 1.0          # restores
+    assert decide(bear, 0.0, s, costs).weight == 0.5          # never fully out

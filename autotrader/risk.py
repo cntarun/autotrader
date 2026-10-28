@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from .config import RiskCfg
@@ -53,8 +54,14 @@ class RiskManager:
         elif st.consecutive_losses >= self.cfg.max_consecutive_losses:
             self.halt(st, f"consecutive_losses {st.consecutive_losses}")
 
-    def check_data(self, last_bar: pd.Timestamp, now: pd.Timestamp, bar: pd.Timedelta) -> str | None:
-        age_bars = (now - (last_bar + bar)) / bar
+    def check_data(self, last_bar: pd.Timestamp, now: pd.Timestamp, bar: pd.Timedelta,
+                   calendar: str = "24/7") -> str | None:
+        if calendar == "weekdays" and bar == pd.Timedelta(days=1):
+            # trading days elapsed since the bar after last_bar (weekends don't count)
+            nxt = (last_bar.normalize() + pd.offsets.BDay(1)).date()
+            age_bars = float(np.busday_count(nxt, now.date()))
+        else:
+            age_bars = (now - (last_bar + bar)) / bar
         if age_bars > self.cfg.max_data_staleness_bars:
             return f"stale_data last_bar={last_bar} age={age_bars:.1f} bars"
         return None

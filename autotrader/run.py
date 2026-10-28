@@ -45,7 +45,8 @@ class Bot:
     @property
     def forecaster(self):
         if self._forecaster is None:
-            self._forecaster = build_forecaster("kronos", self.cfg.model, self.cfg.exchange.timeframe)
+            self._forecaster = build_forecaster("kronos", self.cfg.model, self.cfg.exchange.timeframe,
+                                                self.cfg.exchange.calendar)
         return self._forecaster
 
     def history(self, symbol: str) -> pd.DataFrame:
@@ -123,7 +124,7 @@ class Bot:
                     report["symbols"][sym] = rec
                     continue
                 else:
-                    if (why := self.risk.check_data(last_bar, now, self.bar)):
+                    if (why := self.risk.check_data(last_bar, now, self.bar, cfg.exchange.calendar)):
                         M.ERRORS.labels("data").inc()
                         rec["skipped"] = why
                         notify(f"{sym}: {why}", "warn")
@@ -134,7 +135,7 @@ class Bot:
                         self.risk.halt(st, why)
                     M.MU.labels(sym).set(fc.mu)
                     M.P_UP.labels(sym).set(fc.p_up)
-                    rv = realised_vol_annual(df["close"], bars_per_year(cfg.exchange.timeframe))
+                    rv = realised_vol_annual(df["close"], bars_per_year(cfg.exchange.timeframe, cfg.exchange.calendar))
                     d = decide(fc, cur_w, cfg.strategy, cfg.costs, rv)
                     target, reason = (0.0, f"halted: {st.halt_reason}") if st.halted else (d.weight, d.reason)
                     rec.update(mu=round(fc.mu, 5), p_up=round(fc.p_up, 3), sigma=round(fc.sigma, 5))
