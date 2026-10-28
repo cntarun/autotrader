@@ -1,10 +1,14 @@
 # Can Kronos trade profitably? A pre-registered backtest study
 
-**Study period:** 26–28 October 2026 · **Model:** Kronos-small (`NeoQuasar/Kronos-small`, pinned
-revision `901c26c`) · **Repository:** `cntarun/autotrader` (fork of `shiyu-coder/Kronos`)
+**Author:** Tarun · **Study period:** 26–28 October 2026 · **Model:** Kronos-small
+(`NeoQuasar/Kronos-small`, pinned revision `901c26c`) · **Repository:** `cntarun/autotrader`
+(built on `shiyu-coder/Kronos`, MIT license)
 
 > **Disclaimer.** This is a technical research report, not financial, investment, tax or legal
 > advice. Past performance in a backtest does not predict future returns.
+>
+> **AI assistance.** Code, analysis and drafting were done with the help of an AI assistant
+> (Claude, by Anthropic). All results come from the runs recorded in this repository.
 
 ---
 
