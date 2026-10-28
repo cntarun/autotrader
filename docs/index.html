@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Five pre-registered backtests of the Kronos AI forecasting model on Bitcoin and stock indices: no edge survives realistic trading costs. A study by Tarun.">
+<meta name="author" content="Tarun">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Can Kronos trade profitably? A pre-registered backtest study">
+<meta property="og:description" content="Five experiments on Bitcoin and stock indices. In every setup tested, the AI model's edge did not survive realistic trading costs.">
+<meta property="og:url" content="https://cntarun.github.io/autotrader/">
+<meta property="og:image" content="https://cntarun.github.io/autotrader/report/img/fig01_scorecard.png">
+<meta name="twitter:card" content="summary_large_image">
+<title>Kronos Backtest Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column (~66ch) with figures allowed wider; a market-tape band of results under the title. */
+:root {
+  --bg: #fcfcfb;          /* matches the chart surface so figures sit flush */
+  --fg: #16181c;
+  --muted: #52514e;
+  --rule: #e6e5e0;
+  --panel: #f3f3f0;
+  --accent: #2a78d6;      /* the Kronos series colour in every chart */
+  --fail: #c53030;
+  --pass: #0a7d0a;
+  --tape-bg: #16181c;
+  --tape-fg: #f0efec;
+  --tape-muted: #a9a89f;
+  --tape-fail: #ff8f8f;
+  --show-light: block;
+  --show-dark: none;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1a1a19; --fg: #f0efec; --muted: #c3c2b7; --rule: #383835; --panel: #232322;
+    --accent: #5b9cec; --fail: #ef7b7b; --pass: #4cc24c;
+    --tape-bg: #0f0f0e; --tape-fg: #f0efec; --tape-muted: #a9a89f;
+    --show-light: none; --show-dark: block;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1a1a19; --fg: #f0efec; --muted: #c3c2b7; --rule: #383835; --panel: #232322;
+  --accent: #5b9cec; --fail: #ef7b7b; --pass: #4cc24c;
+  --tape-bg: #0f0f0e; --tape-fg: #f0efec; --tape-muted: #a9a89f;
+  --show-light: none; --show-dark: block;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+.wrap {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.col { max-width: 42rem; margin: 0 auto; }
+
+header.top { padding-block: 3.5rem 2rem; }
+.eyebrow {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.15; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 700; margin: 0 0 1rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.75rem; font-weight: 700; margin: 0; }
+h3 { font-size: 1.2rem; font-weight: 600; margin: 0; }
+.lede { font-size: 1.2rem; line-height: 1.6; margin: 0; }
+.lede strong { font-weight: 600; }
+.meta { font-family: var(--font-data); font-size: 0.8rem; color: var(--muted); margin-top: 1.25rem; }
+
+/* Market tape: each test as a quote line */
+.tape { background: var(--tape-bg); color: var(--tape-fg); }
+.tape .wrap { padding-block: 0; }
+.tape-scroll { overflow-x: auto; scrollbar-width: thin; }
+.tape ol {
+  list-style: none; margin: 0; padding: 0.85rem 0;
+  display: flex; gap: 2.25rem; white-space: nowrap; width: max-content;
+  font-family: var(--font-data); font-size: 0.82rem; font-variant-numeric: tabular-nums;
+}
+.tape li { display: flex; gap: 0.6rem; align-items: center; }
+.tape .sym { font-weight: 500; }
+.tape .vs { color: var(--tape-muted); }
+.tape .tag {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.7rem; letter-spacing: 0.08em;
+  padding: 0.05rem 0.4rem; border: 1px solid currentColor; border-radius: 3px; color: var(--tape-fail);
+}
+
+main { padding-block: 2.5rem 4rem; }
+section { padding-block: 2.25rem; border-top: 1px solid var(--rule); }
+section:first-of-type { border-top: 0; }
+.sec-head { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1.25rem; }
+.sec-head .eyebrow { margin: 0; }
+p { margin: 0 0 1rem; }
+.col > *:last-child { margin-bottom: 0; }
+ul, ol.prose { padding-left: 1.25rem; margin: 0 0 1rem; }
+li + li { margin-top: 0.35rem; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+code { font-family: var(--font-data); font-size: 0.88em; background: var(--panel); padding: 0.05em 0.3em; border-radius: 3px; }
+
+.answer {
+  border-left: 3px solid var(--fail);
+  padding: 0.25rem 0 0.25rem 1rem;
+  margin: 0 0 1.5rem;
+  font-size: 1.15rem;
+}
+.answer strong { font-family: var(--font-display); font-size: 1.3rem; }
+
+.findings { counter-reset: f; list-style: none; padding: 0; margin: 0 0 1rem; }
+.findings li { counter-increment: f; display: grid; grid-template-columns: 2rem 1fr; gap: 0.5rem; }
+.findings li::before { content: counter(f); font-family: var(--font-data); color: var(--muted); padding-top: 0.15rem; }
+.findings li > span { min-width: 0; }
+
+figure { margin: 1.75rem auto; max-width: 60rem; }
+figure img { width: 100%; height: auto; border-radius: 4px; }
+figure img.light { display: var(--show-light); }
+figure img.dark { display: var(--show-dark); }
+figcaption { max-width: 42rem; margin: 0.6rem auto 0; font-size: 0.9rem; color: var(--muted); line-height: 1.5; }
+
+.table-wrap { overflow-x: auto; margin: 1.25rem auto 1.5rem; max-width: 60rem; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th { font-family: var(--font-display); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em; color: var(--muted); border-bottom: 2px solid var(--rule); }
+td.num, th.num { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.num.hi { font-weight: 500; color: var(--fg); }
+.verdict { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
+.verdict.fail { color: var(--fail); }
+.verdict.pass { color: var(--pass); }
+.chk { font-family: var(--font-data); white-space: nowrap; }
+.chk.yes { color: var(--pass); }
+.chk.no { color: var(--fail); }
+
+.toc { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.25rem 1.5rem; padding: 0; list-style: none; margin: 1rem 0 0; font-family: var(--font-display); font-size: 0.98rem; }
+.toc li { margin: 0; }
+.toc a { text-decoration: none; color: var(--fg); }
+.toc a:hover { color: var(--accent); }
+.toc span { font-family: var(--font-data); color: var(--muted); font-size: 0.8rem; margin-right: 0.5rem; }
+
+.note { background: var(--panel); border-radius: 6px; padding: 1rem 1.25rem; font-size: 0.95rem; margin: 1.25rem 0; }
+.note p:last-child { margin-bottom: 0; }
+
+footer { border-top: 1px solid var(--rule); padding-block: 2rem 3rem; color: var(--muted); font-size: 0.88rem; }
+
+@media (max-width: 560px) {
+  body { font-size: 1rem; }
+  header.top { padding-block: 2.25rem 1.5rem; }
+  th, td { padding: 0.45rem 0.5rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+<style>html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow">Backtest study · October 2026</p>
+      <h1>Can Kronos trade profitably?</h1>
+      <p class="lede">We tested whether <strong>Kronos</strong>, an open-source foundation model that forecasts price candles, can drive a low-maintenance trading system starting from €20. Five experiments on real market data, every pass/fail rule fixed before the results were seen. <strong>In every setup we tested, it did not produce an edge that survives realistic trading costs.</strong></p>
+      <p class="meta">By Tarun · Model: Kronos-small (pinned revision 901c26c) · Test window: 1 Sep 2025 – 26 Oct 2026 · Study run 26–28 Oct 2026</p>
+    </div>
+  </div>
+</header>
+
+<div class="tape" aria-label="Results at a glance: Kronos strategy return versus the benchmark for each test">
+  <div class="wrap">
+    <div class="tape-scroll">
+      <ol>
+        <li><span class="sym">BTC/EUR 4h</span><span>−20.6%</span><span class="vs">vs hold −22.3%</span><span class="tag">FAIL</span></li>
+        <li><span class="sym">S&amp;P 500</span><span>+1.4%</span><span class="vs">vs hold +19.7%</span><span class="tag">FAIL</span></li>
+        <li><span class="sym">NIFTY 50</span><span>+3.1%</span><span class="vs">vs hold −7.6%</span><span class="tag">FAIL</span></li>
+        <li><span class="sym">SENSEX overlay</span><span>−5.1%</span><span class="vs">vs hold −8.4%</span><span class="tag">FAIL</span></li>
+        <li><span class="sym">NIFTY BANK overlay</span><span>+3.1%</span><span class="vs">vs hold +0.7%</span><span class="tag">FAIL</span></li>
+        <li><span class="sym">12-INDEX RANK</span><span>+19.9%</span><span class="vs">vs equal wt +16.5%</span><span class="tag">FAIL</span></li>
+        <li><span class="sym">FINE-TUNED</span><span>IC 0.19 / 0.03</span><span class="vs">vs 0.15 / 0.18</span><span class="tag">FAIL</span></li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+
+    <section id="summary">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">Summary</p><h2>The short answer is no</h2></div>
+        <p class="answer"><strong>Do not trade Kronos-small with real money.</strong> Used as-is or fine-tuned, it never beat its benchmark robustly after costs.</p>
+        <ol class="findings">
+          <li><span><strong>No signal on Bitcoin.</strong> Up/down calls were right 49.5% of the time, a coin flip, and its most confident calls were right only 45% of the time.</span></li>
+          <li><span><strong>A weak but consistent ranking signal on stock indices.</strong> The rank correlation between forecast and outcome was positive in every index test (+0.06 to +0.18). Strongly positive forecasts were right about two-thirds of the time in 3 of the 4 windows with enough of them.</span></li>
+          <li><span><strong>Forecasts lean bearish and are overconfident.</strong> Kronos often predicted falls after rises, so "buy only on a predicted rise" sat in cash through bull markets. Real moves were up to 1.9× wider than its forecast range.</span></li>
+          <li><span><strong>The edge is too small for real-world frictions.</strong> Every advantage vanished at slightly higher fees, after a one-period delay, or against simply holding the index.</span></li>
+          <li><span><strong>Fine-tuning improved the fit, not the forecasts.</strong> Validation loss fell 15% and calibration improved, but ranking skill collapsed on the S&amp;P 500.</span></li>
+        </ol>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig01_scorecard.png" width="1626" height="1116" alt="Grouped horizontal bars of total return for eight tests, comparing the Kronos strategy, buy and hold, and the same rule with random forecasts. Buy and hold beats Kronos in the S&amp;P 500 and both 2022 to 2025 windows; Kronos is ahead only in falling markets and the index ranking.">
+        <img class="dark" src="report/img/dark/fig01_scorecard.png" width="1626" height="1116" alt="" loading="lazy">
+        <figcaption>Every test at a glance. Kronos beat random forecasts throughout, but simply holding the index won most comparisons.</figcaption>
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Experiment</th><th>Data</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr><td class="num">1</td><td>Buy-or-cash on Bitcoin</td><td>BTC/EUR, 4-hour, Sep 2025 – Oct 2026</td><td><span class="verdict fail">✗ Fail</span>: no forecasting skill; worse than random forecasts</td></tr>
+            <tr><td class="num">2</td><td>Buy-or-cash on stock indices</td><td>S&amp;P 500, Nifty 50, daily, 2022 – 2026</td><td><span class="verdict fail">✗ Not usable</span>: holding won in 3 of 4 windows</td></tr>
+            <tr><td class="num">3</td><td>Stay-invested overlay</td><td>Sensex, Nifty Bank, daily, Sep 2025 – Oct 2026</td><td><span class="verdict fail">✗ Fail</span>: advantage gone at 0.25% fees</td></tr>
+            <tr><td class="num">4</td><td>Weekly ranking of 12 indices</td><td>12 global indices, weekly, 2022 – 2026</td><td><span class="verdict fail">✗ Fail</span>: information ratio 0.27, below 0.5 required</td></tr>
+            <tr><td class="num">5</td><td>Kronos fine-tuned on indices</td><td>12 indices to 2024; tested on Nifty 50, S&amp;P 500</td><td><span class="verdict fail">✗ Fail</span>: better fit, not better forecasts</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <ol class="toc" aria-label="Sections">
+          <li><a href="#method"><span>§2</span>What we built and how we tested</a></li>
+          <li><a href="#context"><span>§3</span>The test period</a></li>
+          <li><a href="#bitcoin"><span>§4</span>Bitcoin</a></li>
+          <li><a href="#indices"><span>§5</span>S&amp;P 500 and Nifty 50</a></li>
+          <li><a href="#quality"><span>§6</span>Forecast quality</a></li>
+          <li><a href="#overlay"><span>§7</span>Stay-invested overlay</a></li>
+          <li><a href="#ranking"><span>§8</span>12-index ranking</a></li>
+          <li><a href="#finetune"><span>§9</span>Fine-tuning</a></li>
+          <li><a href="#errors"><span>§10</span>Errors found and fixed</a></li>
+          <li><a href="#limits"><span>§11</span>Limitations and conclusions</a></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="method">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§2 · Method</p><h2>What we built and how we tested</h2></div>
+        <p><strong>Kronos</strong> is a family of transformers pre-trained on candlestick data (open, high, low, close, volume) from more than 45 exchanges. It only forecasts prices; it has no trading, risk or execution logic. Around it we built a probabilistic forecaster (16 sample paths per decision, giving the mean forecast return, its spread, and the share of paths ending higher), long-only strategies with no leverage, a risk layer with circuit breakers and a kill switch, paper and live brokers, monitoring, and a walk-forward backtester. Live trading stayed locked throughout.</p>
+        <h3>Rules of the test</h3>
+        <ul>
+          <li><strong>No look-ahead.</strong> A forecast at bar <em>t</em> uses data up to <em>t</em> and is filled at the next bar's open. A regression test checks that changing future data never changes past forecasts.</li>
+          <li><strong>Unseen data.</strong> The main window (1 Sep 2025 – 26 Oct 2026) starts after Kronos was published. An older 2022 – 2025 window may overlap its training data and is marked with *.</li>
+          <li><strong>Realistic costs.</strong> Bitcoin: 0.40% fee plus 0.10% slippage per trade. Indices: 0.10% plus 0.05%. Stress tests double fees, triple slippage and delay execution.</li>
+          <li><strong>Two baselines.</strong> Every strategy faces buy-and-hold (or equal weight) and the same rule driven by random forecasts. A real signal must beat both.</li>
+          <li><strong>Pre-registration.</strong> Thresholds and pass/fail rules were committed to git before each run. Tuning, where allowed, used an earlier period only.</li>
+        </ul>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Measure</th><th>What it tells you</th></tr></thead>
+          <tbody>
+            <tr><td>Hit rate</td><td>Share of up/down calls that were right (50% is a coin flip)</td></tr>
+            <tr><td>Information coefficient (IC)</td><td>Rank correlation between forecast and outcome (0 means no skill)</td></tr>
+            <tr><td>Brier score</td><td>Accuracy of the "chance of a rise". Lower is better; always guessing the base rate scores about 0.25</td></tr>
+            <tr><td>Spread ratio</td><td>Real moves ÷ forecast range (1 is well calibrated; above 1 is overconfident)</td></tr>
+            <tr><td>Sharpe ratio</td><td>Return per unit of volatility, annualised</td></tr>
+            <tr><td>Information ratio</td><td>Extra return over the benchmark per unit of extra risk</td></tr>
+            <tr><td>Max drawdown</td><td>Largest fall from a previous peak</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="context">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§3 · Context</p><h2>The test period</h2></div>
+        <p>The unseen window held three very different markets: Bitcoin fell about a quarter in euros, the S&amp;P 500 rose about a fifth, and the Nifty 50 drifted lower. A useful signal should help in all three.</p>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig02_market_context.png" width="1383" height="695" loading="lazy" alt="Indexed prices from 1 September 2025: S&amp;P 500 ends up 20%, Nifty 50 down 7%, BTC/EUR down 25%.">
+        <img class="dark" src="report/img/dark/fig02_market_context.png" width="1383" height="695" loading="lazy" alt="">
+      </figure>
+    </section>
+
+    <section id="bitcoin">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§4 · Experiment 1</p><h2>Bitcoin, 4-hour candles</h2></div>
+        <p>€20 start, a decision every 4 hours (2,525 decisions on a GPU; 839 decisions every 12 hours on CPU as a cross-check), forecasting 24 hours ahead. Buy when the expected move beats 1.5× the round-trip cost and at least 58% of paths end higher; sell when the outlook turns negative; stop at a 20% drawdown.</p>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig03_btc_equity.png" width="1411" height="695" loading="lazy" alt="Account value over time: Kronos falls from €20 to €16.61 and stops trading in February 2026 at the drawdown limit; random forecasts end at €18.35; buy and hold ends at €15.64.">
+        <img class="dark" src="report/img/dark/fig03_btc_equity.png" width="1411" height="695" loading="lazy" alt="">
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th class="num">Kronos 4h</th><th class="num">Kronos 12h (CPU)</th><th class="num">Random 4h</th><th class="num">Buy &amp; hold</th></tr></thead>
+          <tbody>
+            <tr><td>€20 became</td><td class="num">€15.88</td><td class="num">€16.61</td><td class="num hi">€17.51</td><td class="num">€15.53</td></tr>
+            <tr><td>Return</td><td class="num">−20.6%</td><td class="num">−16.9%</td><td class="num hi">−12.4%</td><td class="num">−22.3%</td></tr>
+            <tr><td>Hit rate</td><td class="num">49.5%</td><td class="num">48.6%</td><td class="num">~50%</td><td class="num">—</td></tr>
+            <tr><td>Information coefficient</td><td class="num">−0.013</td><td class="num">−0.008</td><td class="num">+0.012</td><td class="num">—</td></tr>
+            <tr><td>Right when forecast &gt; +1.5%</td><td class="num">44.7% (190)</td><td class="num">48.1% (52)</td><td class="num">—</td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <p>Kronos lost slightly less than holding Bitcoin, but only because it spent most of the year in cash while Bitcoin fell. It lost more than random forecasts did, and its direction calls were a coin flip.</p>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig04_btc_fees.png" width="1226" height="693" loading="lazy" alt="Final value by fee level: €15.88 at 0.40%, rising only to €16.73 at zero cost, below the €17.51 reached by random forecasts with full fees.">
+        <img class="dark" src="report/img/dark/fig04_btc_fees.png" width="1226" height="693" loading="lazy" alt="">
+        <figcaption>Fees are not the cause: even trading for free, Kronos ends below random forecasts that pay full fees. Tuning on the first half of the year and testing on the second lost 5.9% while Bitcoin rose 21%.</figcaption>
+      </figure>
+      <figure>
+        <img class="light" src="report/img/fig11_btc_montecarlo.png" width="1240" height="706" loading="lazy" alt="Histogram of 5,000 one-year simulations of the strategy's returns: 96% end below the €20 start; the median is about €17.">
+        <img class="dark" src="report/img/dark/fig11_btc_montecarlo.png" width="1240" height="706" loading="lazy" alt="">
+        <figcaption>A block-bootstrap Monte Carlo of the CPU run (5,000 one-year paths, half of any positive drift removed) ends below €20 in 96% of cases; median €17.09; 41% of paths fall more than 20% at some point. The GPU run gives 98%.</figcaption>
+      </figure>
+    </section>
+
+    <section id="indices">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§5 · Experiment 2</p><h2>S&amp;P 500 and Nifty 50, daily</h2></div>
+        <p>Daily candles, about 1.6 years of context, forecasting one trading week ahead, the same thresholds as Bitcoin, 0.10% fees plus 0.05% slippage, and a weekday trading calendar.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Window</th><th class="num">Kronos</th><th class="num">Buy &amp; hold</th><th class="num">Random</th><th class="num">Time invested</th><th class="num">Hit rate</th><th class="num">IC</th></tr></thead>
+          <tbody>
+            <tr><td>S&amp;P 500, Sep 2025 – Oct 2026</td><td class="num">+1.4%</td><td class="num hi">+19.7%</td><td class="num">−11.8%</td><td class="num">6%</td><td class="num">42.8%</td><td class="num">0.18</td></tr>
+            <tr><td>Nifty 50, Sep 2025 – Oct 2026</td><td class="num hi">+3.1%</td><td class="num">−7.6%</td><td class="num">−6.1%</td><td class="num">38%</td><td class="num">59.5%</td><td class="num">0.15</td></tr>
+            <tr><td>S&amp;P 500, 2022 – Aug 2025*</td><td class="num">+26.3%</td><td class="num hi">+33.8%</td><td class="num">−21.0%</td><td class="num">17%</td><td class="num">47.6%</td><td class="num">0.10</td></tr>
+            <tr><td>Nifty 50, 2022 – Aug 2025*</td><td class="num">+3.1%</td><td class="num hi">+39.7%</td><td class="num">−19.8%</td><td class="num">23%</td><td class="num">51.0%</td><td class="num">0.06</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <p>Kronos beat random forecasts in every window and fell less at its worst, but holding the index returned more in three of four. It came out ahead only in the one falling market.</p>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig06_bearish_bias.png" width="1351" height="693" loading="lazy" alt="Pairs of bars per window: share of weeks the index rose (46% to 58%) versus share of time the buy-or-cash rule was invested (6% to 46%). The S&amp;P 500 rose in 57% of weeks while Kronos was invested 6% of the time.">
+        <img class="dark" src="report/img/dark/fig06_bearish_bias.png" width="1351" height="693" loading="lazy" alt="">
+        <figcaption>Why it sat in cash: Kronos's index forecasts lean bearish after rises. In a spot check on 12 Oct 2026 it predicted a fall for the S&amp;P 500 with 100, 200 and 400 days of history alike.</figcaption>
+      </figure>
+    </section>
+
+    <section id="quality">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§6 · Across all tests</p><h2>Forecast quality</h2></div>
+        <p>The clearest pattern of the study: a small but consistent ranking signal on stock indices, and none on Bitcoin. Up/down calls stay near a coin flip almost everywhere, because the bearish lean drags them down in rising markets.</p>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig05_forecast_skill.png" width="1740" height="941" loading="lazy" alt="Left: information coefficient per test, about zero for Bitcoin and between 0.06 and 0.18 for indices. Right: hit rate per test, between 43% and 60%, mostly near 50%.">
+        <img class="dark" src="report/img/dark/fig05_forecast_skill.png" width="1740" height="941" loading="lazy" alt="">
+      </figure>
+      <figure>
+        <img class="light" src="report/img/fig07_calibration.png" width="1740" height="850" loading="lazy" alt="Left: Brier score of Kronos between 0.31 and 0.52 versus about 0.25 for always predicting the base rate. Right: real moves are 1.0 to 1.9 times wider than the forecast range.">
+        <img class="dark" src="report/img/dark/fig07_calibration.png" width="1740" height="850" loading="lazy" alt="">
+        <figcaption>Kronos's "chance of a rise" scored worse than a constant guess in every test. Its forecast paths are too narrow, so the probability swings to 0% or 100% far more often than outcomes justify.</figcaption>
+      </figure>
+    </section>
+
+    <section id="overlay">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§7 · Experiment 3</p><h2>Stay invested, cut when bearish</h2></div>
+        <p>Since Kronos leans bearish, the logic was flipped: stay fully invested and step down to 50% only on strongly bearish forecasts (at most 30% of paths up and a mean forecast of −1% or worse), returning to 100% once 45% of paths point up. The test used two indices not seen before. To pass, each index had to meet all four rules below.</p>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig08_overlay.png" width="1740" height="722" loading="lazy" alt="Left: Sharpe ratios; overlay beats buy and hold on both indices and beats random forecasts. Right: worst drop of 14.9% for the overlay versus 16.5% and 18.3% for holding.">
+        <img class="dark" src="report/img/dark/fig08_overlay.png" width="1740" height="722" loading="lazy" alt="">
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rule</th><th>Sensex</th><th>Nifty Bank</th></tr></thead>
+          <tbody>
+            <tr><td>Return vs buy &amp; hold</td><td class="num" style="text-align:left">−5.1% vs −8.4%</td><td class="num" style="text-align:left">+3.1% vs +0.7%</td></tr>
+            <tr><td>1 · Sharpe at least 0.2 above buy &amp; hold</td><td><span class="chk yes">✓ +0.21</span></td><td><span class="chk no">✗ +0.14</span></td></tr>
+            <tr><td>2 · Smaller worst drop</td><td><span class="chk yes">✓ 14.9% vs 16.5%</span></td><td><span class="chk yes">✓ 14.9% vs 18.3%</span></td></tr>
+            <tr><td>3 · Beats random forecasts</td><td><span class="chk yes">✓</span></td><td><span class="chk yes">✓</span></td></tr>
+            <tr><td>4 · Rule 1 still holds at 0.25% fees</td><td><span class="chk no">✗</span></td><td><span class="chk no">✗</span></td></tr>
+            <tr><td><strong>Verdict</strong></td><td><span class="verdict fail">✗ Fail</span></td><td><span class="verdict fail">✗ Fail</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <p>About 3 points of extra return and 2–3 points less drawdown, but not enough to survive slightly higher fees, and a one-day delay lowers the Sharpe on both (Sensex −0.45, Nifty Bank −0.01). Sensex moves almost exactly with the Nifty 50 (0.99 daily correlation), so it adds little independent evidence.</p>
+      </div>
+    </section>
+
+    <section id="ranking">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§8 · Experiment 4</p><h2>Weekly ranking of 12 global indices</h2></div>
+        <p>This test used only the signal that exists, the ranking, and stayed invested. Each Friday, the 12 indices (S&amp;P 500, Nasdaq 100, Euro Stoxx 50, DAX, CAC 40, FTSE 100, Nikkei 225, Hang Seng, Nifty 50, KOSPI, ASX 200, MSCI EM) were ranked by forecast. We held the top two and compared with holding all twelve equally. Settings were tuned on 2022 – Aug 2025, then frozen and tested once.</p>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig09_rotation.png" width="1772" height="773" loading="lazy" alt="Left: test-period returns of 19.9% for the chosen ranking, 23.4% for the preset, 16.5% for equal weight and −23.2% for random forecasts. Right: information ratios 0.34 in tuning, 0.27 in test, 0.13 at higher fees, 0.24 with a week's delay, 0.53 for the preset, against a pass line of 0.5.">
+        <img class="dark" src="report/img/dark/fig09_rotation.png" width="1772" height="773" loading="lazy" alt="">
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>60 test weeks</th><th class="num">Top 2 (chosen)</th><th class="num">Top 3 (preset)</th><th class="num">Equal weight</th><th class="num">Random</th></tr></thead>
+          <tbody>
+            <tr><td>Total return</td><td class="num">+19.9%</td><td class="num">+23.4%</td><td class="num">+16.5%</td><td class="num">−23.2%</td></tr>
+            <tr><td>Sharpe</td><td class="num">1.34</td><td class="num">1.55</td><td class="num">1.15</td><td class="num">−1.37</td></tr>
+            <tr><td>Max drawdown</td><td class="num">−8.3%</td><td class="num">−8.0%</td><td class="num">−9.3%</td><td class="num">−27.0%</td></tr>
+            <tr><td>Information ratio</td><td class="num hi">0.27</td><td class="num">0.53</td><td class="num">—</td><td class="num">−4.56</td></tr>
+            <tr><td>Weekly IC (t-stat)</td><td class="num">0.024 (0.47)</td><td class="num">0.024 (0.47)</td><td class="num">—</td><td class="num">−0.074</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <p><span class="verdict fail">✗ Fail</span>: three of four rules met, but the information ratio of 0.27 is below the 0.5 required. It is also unlikely to be a real edge:</p>
+        <ul>
+          <li>Ranking skill is statistically indistinguishable from zero, both in the test (t = 0.47) and in tuning (t = 0.18).</li>
+          <li>Delaying every decision by a week gave the same extra return. The gain came from which indices the slow-moving portfolio happened to hold, not from week-to-week forecasts.</li>
+          <li>The preset settings would have passed, but switching after seeing the test is the selection bias pre-registration exists to stop. The random version mostly lost to its own trading costs.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="finetune">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§9 · Experiment 5</p><h2>Fine-tuning Kronos on stock indices</h2></div>
+        <p>The forecasting part of Kronos was retrained on the 12 indices' daily history up to the end of 2024 and checked on January – August 2025. It was then compared with the original model on the Nifty 50 and S&amp;P 500 over the unseen window. It passed only if ranking skill rose and the Brier score fell on both indices.</p>
+      </div>
+      <figure>
+        <img class="light" src="report/img/fig10_finetune.png" width="1903" height="722" loading="lazy" alt="Ranking skill rises from 0.15 to 0.19 on Nifty 50 but falls from 0.18 to 0.03 on S&amp;P 500; Brier score improves on both; validation loss falls from 3.25 to 2.76.">
+        <img class="dark" src="report/img/dark/fig10_finetune.png" width="1903" height="722" loading="lazy" alt="">
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th class="num">Nifty 50 original</th><th class="num">Nifty 50 tuned</th><th class="num">S&amp;P 500 original</th><th class="num">S&amp;P 500 tuned</th></tr></thead>
+          <tbody>
+            <tr><td>Information coefficient</td><td class="num">0.148</td><td class="num">0.186</td><td class="num">0.178</td><td class="num hi">0.033</td></tr>
+            <tr><td>Brier score</td><td class="num">0.310</td><td class="num">0.276</td><td class="num">0.522</td><td class="num">0.428</td></tr>
+            <tr><td>Buy-or-cash return</td><td class="num">+3.1%</td><td class="num">−0.1%</td><td class="num">+1.4%</td><td class="num">+0.1%</td></tr>
+            <tr><td>Overlay return</td><td class="num">−4.9%</td><td class="num">−4.5%</td><td class="num">+11.0%</td><td class="num">+10.2%</td></tr>
+            <tr><td>Buy &amp; hold</td><td class="num" colspan="2" style="text-align:center">−7.6%</td><td class="num" colspan="2" style="text-align:center">+19.7%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <p><span class="verdict fail">✗ Fail</span>. Validation loss fell from 3.25 to 2.76 and probabilities became better calibrated on both indices, but ranking skill collapsed on the S&amp;P 500 and neither strategy improved. A model that fits candle data better is not necessarily better at calling next week's direction. The original model's Nifty 50 numbers matched an earlier run exactly, which confirms the pipeline is deterministic.</p>
+      </div>
+    </section>
+
+    <section id="errors">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§10 · Transparency</p><h2>Errors found and fixed during the study</h2></div>
+        <p>Each was fixed before the affected conclusions were drawn.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Issue</th><th>Effect</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr><td>Monte Carlo "haircut" added return to losing strategies</td><td>A losing strategy showed a +64% median</td><td>Haircut only shrinks positive drift</td></tr>
+            <tr><td>Backtest ran past the end of a sub-window</td><td>2022 – 2025 results and tuning halves included later data</td><td>Stops at the last decision; regression test; results re-run</td></tr>
+            <tr><td>Exchange library ignored the network proxy</td><td>Market-data downloads failed</td><td>Proxy settings honoured</td></tr>
+            <tr><td>Half-precision inference, tried for speed</td><td>Mean forecast moved from −3% to −19%</td><td>Rejected; full precision only</td></tr>
+            <tr><td>Random forecasts churned the ranking portfolio</td><td>About 145% weekly turnover, about 11% a year in costs</td><td>Holding buffer added before any Kronos ranking result</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limits">
+      <div class="col">
+        <div class="sec-head"><p class="eyebrow">§11 · Reading the results</p><h2>Limitations and conclusions</h2></div>
+        <h3>Limitations</h3>
+        <ul>
+          <li><strong>One year of unseen data.</strong> Daily forecasts a week ahead give only about 57 independent weeks per index, so small effects can't be confirmed or ruled out.</li>
+          <li><strong>Not perfectly blind.</strong> Later experiments were designed after earlier ones, and some unseen-window results were already known. Pre-registration limits this but cannot remove it.</li>
+          <li><strong>Kronos-small only.</strong> The larger public model was not tested.</li>
+          <li><strong>Local currencies.</strong> A euro investor in these indices would also face currency moves.</li>
+          <li><strong>Simplified execution.</strong> Fills at the next open with fixed slippage; holidays beyond weekends are not modelled; some indices lack volume data.</li>
+        </ul>
+        <h3>Conclusions</h3>
+        <ol class="prose">
+          <li>Do not trade Kronos-small with real money in any of the tested forms.</li>
+          <li>Simply holding a broad index fund was the hardest benchmark to beat, with no model, server or upkeep.</li>
+          <li>The infrastructure works and is tested. What is missing is a signal.</li>
+          <li>More promising research would add information Kronos does not see, such as company fundamentals, or pick stocks within one market using historical index membership. Either would need the same pre-registered testing before any paper trading.</li>
+        </ol>
+        <div class="note">
+          <p>Source code, raw results and pre-registrations are in the <a href="https://github.com/cntarun/autotrader">cntarun/autotrader</a> repository on GitHub: report in <code>docs/report/</code>, detailed results in <code>docs/BACKTEST_RESULTS.md</code>, GPU notebooks in <code>notebooks/</code>. Charts are regenerated by <code>docs/report/make_report_charts.py</code>.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="col">
+      <p>Study by Tarun. Code, analysis and drafting were done with the help of an AI assistant (Claude, by Anthropic); all results come from runs recorded in the project repository.</p>
+      <p>This is a technical research report, not financial, investment, tax or legal advice. Backtest results do not predict future returns.</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
