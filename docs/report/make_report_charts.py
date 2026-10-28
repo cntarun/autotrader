@@ -27,18 +27,32 @@ ROOT = HERE.parent.parent
 RES, DATA, IMG = HERE / "results", HERE / "data", HERE / "img"
 sys.path.insert(0, str(ROOT))
 
-# Palette: validated categorical slots 1-3 (light mode), neutral inks, recessive grid.
-KRONOS, BENCH, NAIVE = "#2a78d6", "#eb6834", "#1baf7a"
-SURFACE, INK, INK2, GRID, REF = "#fcfcfb", "#0b0b0b", "#52514e", "#e6e5e0", "#8a8983"
+# Palettes: validated categorical slots 1-3 for each mode (dataviz validator, all pairs),
+# neutral inks and a recessive grid. Dark is its own set of steps, not an inversion.
+THEMES = {
+    "light": dict(KRONOS="#2a78d6", BENCH="#eb6834", NAIVE="#1baf7a", SURFACE="#fcfcfb",
+                  INK="#0b0b0b", INK2="#52514e", GRID="#e6e5e0", REF="#8a8983"),
+    "dark": dict(KRONOS="#3987e5", BENCH="#d95926", NAIVE="#199e70", SURFACE="#1a1a19",
+                 INK="#f0efec", INK2="#c3c2b7", GRID="#383835", REF="#7c7b75"),
+}
+KRONOS = BENCH = NAIVE = SURFACE = INK = INK2 = GRID = REF = None
 
-plt.rcParams.update({
-    "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
-    "axes.edgecolor": GRID, "axes.labelcolor": INK2, "xtick.color": INK2, "ytick.color": INK2,
-    "text.color": INK, "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.8,
-    "grid.linestyle": "-", "axes.spines.top": False, "axes.spines.right": False,
-    "axes.titlesize": 13, "axes.titleweight": "bold", "axes.titlelocation": "left",
-    "axes.titlepad": 12, "font.size": 10, "legend.frameon": False, "axes.axisbelow": True,
-})
+
+def set_theme(name: str) -> None:
+    g = globals()
+    g.update(THEMES[name])
+    plt.rcParams.update({
+        "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
+        "axes.edgecolor": GRID, "axes.labelcolor": INK2, "xtick.color": INK2, "ytick.color": INK2,
+        "text.color": INK, "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.8,
+        "grid.linestyle": "-", "axes.spines.top": False, "axes.spines.right": False,
+        "axes.titlesize": 13, "axes.titleweight": "bold", "axes.titlelocation": "left",
+        "axes.titlepad": 12, "font.size": 10, "legend.frameon": False, "axes.axisbelow": True,
+        "legend.labelcolor": INK,
+    })
+
+
+set_theme("light")
 
 
 def load(name):
@@ -445,7 +459,13 @@ def fig_montecarlo():
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--refresh", action="store_true")
+    p.add_argument("--theme", choices=list(THEMES), default="light")
+    p.add_argument("--out", help="output folder (default docs/report/img)")
     a = p.parse_args()
+    global IMG
+    if a.out:
+        IMG = Path(a.out)
+    set_theme(a.theme)
     if a.refresh:
         refresh()
     for f in (fig_scorecard, fig_market_context, fig_btc_equity, fig_btc_fees, fig_forecast_skill, fig_bias,
